@@ -19,6 +19,7 @@ void read_in_stdin(std::vector<std::array<double,2>> &v)
 }
 
 // computes the euclidian distance between two points
+// no rounding is made as an adjustment for the christofides algorithm
 double compute_distance(std::array<double,2> v1, std::array<double,2> v2)
 {
     double sum = (v1.at(0) - v2.at(0))*(v1.at(0) - v2.at(0));
@@ -27,7 +28,7 @@ double compute_distance(std::array<double,2> v1, std::array<double,2> v2)
     return sum;
 }
 
-int main()
+/*int main()
 {
     int iters;
     std::cin >> iters;
@@ -36,4 +37,4 @@ int main()
 
     std::cout << (double)(v[1][1]) << "\n";
     return 0;
-}
+}*/

@@ -6,6 +6,7 @@
 #include <tuple>
 #include <limits>
 #include <cmath>
+#include "read.hpp"
 
 /*
  * This is the file that implements the minimum spanning tree
@@ -19,7 +20,6 @@ class MST
         void getMST(std::vector<std::array<int,2>> &e);
         std::vector<int> parent;
         std::vector<std::array<double,2>> vertices;
-        int comparator(std::vector<std::array<int,2>> &e1, std::vector<std::array<int,2>> &e2);
         double computeEdgeDist(int ind1, int ind2);
         double computeDistance(std::array<double,2> v1, std::array<double,2> v2);
 };
@@ -29,10 +29,13 @@ MST::MST()
     std::cout << "MST\n";
 }
 
-int MST::comparator(std::vector<std::array<int,2>> &e1, std::vector<std::array<int,2>> &e2)
+struct compare
 {
-    return 0;
-}
+    bool operator () (const std::pair<int,double> &lhs, const std::pair<int,double> &rhs)
+    {
+        return (lhs.second > rhs.second);
+    }
+};
 
 void MST::getMST(std::vector<std::array<int,2>> &e)
 {
@@ -40,6 +43,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     double dist[size];
     int pred[size];
     bool visited[size] = {false};
+    compare comp;
     // we always start with vertic index 0
     // because it does not make a difference
     
@@ -64,12 +68,13 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
 
     pq.push_back({0,0});
 
-    std::make_heap(pq.begin(),pq.end());
+    std::make_heap(pq.begin(),pq.end(),comp);
 
     while (!pq.empty())
     {
-        std::pair<int,double> v = pq.front();
-        pq.erase(pq.begin());
+        std::pop_heap(pq.begin(), pq.end(), comp);
+        std::pair<int,double> v = pq.back();
+        pq.pop_back();
         if(visited[v.first])
         {
             // we have already visited that one
@@ -91,9 +96,9 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
                 {
                     pred[w] = v.first;
                     pq.push_back({w,newDist});
+                    // we also need to do the changes to the heap
+                    std::push_heap(pq.begin(), pq.end(), comp);
                     dist[w] = newDist;
-                    // we changed the heap so we need to build it again
-                    std::make_heap(pq.begin(),pq.end());
                 }
             }
         }
@@ -115,9 +120,13 @@ double MST::computeDistance(std::array<double,2> v1, std::array<double,2> v2)
     return sum;
 }
 
+
 int main()
 {
     MST *m = new MST();
-    m->parent[0];
-    std::cout << __DBL_MAX__ << "\n";
+    int iters;
+    std::cin >> iters;
+    std::vector<std::array<double,2>> v(iters);
+    read_in_stdin(v);
+    return 0;
 }

@@ -10,6 +10,7 @@
 
 void read_in_stdin(std::vector<std::array<double,2>> &v)
 {
+    std::cout << "Read data in ...\n";
     for(auto &line : v)
     {
         for(auto &d : line)
@@ -19,5 +20,5 @@ void read_in_stdin(std::vector<std::array<double,2>> &v)
         }
         std::cout << "\n";
     }
-    std::cout << (double)(v[1][1]) << "\n";
+    //std::cout << (double)(v[1][1]) << "\n";
 }

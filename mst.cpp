@@ -16,17 +16,17 @@
 class MST
 {
     public:
-        MST();
+        MST(std::vector<std::array<double,2>> &vertices);
         void getMST(std::vector<std::array<int,2>> &e);
-        std::vector<int> parent;
         std::vector<std::array<double,2>> vertices;
         double computeEdgeDist(int ind1, int ind2);
         double computeDistance(std::array<double,2> v1, std::array<double,2> v2);
 };
 
-MST::MST()
+MST::MST(std::vector<std::array<double,2>> &vertices)
 {
     std::cout << "MST\n";
+    this->vertices = vertices;
 }
 
 struct compare
@@ -39,6 +39,7 @@ struct compare
 
 void MST::getMST(std::vector<std::array<int,2>> &e)
 {
+    std::cout << "start getMST\n";
     int size = vertices.size();
     double dist[size];
     int pred[size];
@@ -103,6 +104,14 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
             }
         }
     }
+    for(int i = 0; i < size; i++)
+    {
+        if(pred[i] >= 0)
+        {
+            // then it is a valid predecessor
+            e.push_back({pred[i],i});
+        }
+    }
 }
 
 double MST::computeEdgeDist(int ind1, int ind2)
@@ -123,10 +132,17 @@ double MST::computeDistance(std::array<double,2> v1, std::array<double,2> v2)
 
 int main()
 {
-    MST *m = new MST();
     int iters;
     std::cin >> iters;
     std::vector<std::array<double,2>> v(iters);
     read_in_stdin(v);
+    std::vector<std::array<int,2>> e;
+    MST *m = new MST(v);
+    std::cout << "finished init\n";
+    m->getMST(e);
+    for(auto &line : e)
+    {
+        std::cout << line[0] << " - " << line[1] + "\n";    
+    }
     return 0;
 }

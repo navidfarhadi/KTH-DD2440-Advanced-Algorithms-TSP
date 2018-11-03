@@ -7,6 +7,7 @@
 #include <limits>
 #include <cmath>
 #include "read.hpp"
+#include "odd_degree_subgraph.hpp"
 
 /*
  * This is the file that implements the minimum spanning tree
@@ -21,11 +22,12 @@ class MST
         std::vector<std::array<double,2>> vertices;
         double computeEdgeDist(int ind1, int ind2);
         double computeDistance(std::array<double,2> v1, std::array<double,2> v2);
+        void print_pq(std::vector<std::pair<int,double>> &pq);
 };
 
 MST::MST(std::vector<std::array<double,2>> &vertices)
 {
-    std::cout << "MST\n";
+    std::cerr << "MST\n";
     this->vertices = vertices;
 }
 
@@ -39,7 +41,7 @@ struct compare
 
 void MST::getMST(std::vector<std::array<int,2>> &e)
 {
-    std::cout << "start getMST\n";
+    std::cerr << "start getMST\n";
     int size = vertices.size();
     double dist[size];
     int pred[size];
@@ -73,6 +75,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
 
     while (!pq.empty())
     {
+        print_pq(pq);
         std::pop_heap(pq.begin(), pq.end(), comp);
         std::pair<int,double> v = pq.back();
         pq.pop_back();
@@ -87,6 +90,8 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
             // mark it as visited
             visited[v.first] = true;
         }
+
+        std::cerr << "EVALUATING: " << v.first << "\n";
 
         for(int w = 0; w < size; w++)
         {
@@ -106,6 +111,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     }
     for(int i = 0; i < size; i++)
     {
+        std::cerr << "pred[" << i << "] == " << pred[i] << "\n"; 
         if(pred[i] >= 0)
         {
             // then it is a valid predecessor
@@ -129,6 +135,15 @@ double MST::computeDistance(std::array<double,2> v1, std::array<double,2> v2)
     return sum;
 }
 
+void MST::print_pq(std::vector<std::pair<int,double>> &pq)
+{
+    std::cerr << "print pq\n";
+    for(auto &line : pq)
+    {
+        std::cerr << line.first << " dist: " << line.second << "\n";
+    }
+}
+
 
 int main()
 {
@@ -136,13 +151,16 @@ int main()
     std::cin >> iters;
     std::vector<std::array<double,2>> v(iters);
     read_in_stdin(v);
-    std::vector<std::array<int,2>> e;
+    std::vector<std::array<int,2>> mst_edges;
     MST *m = new MST(v);
-    std::cout << "finished init\n";
-    m->getMST(e);
-    for(auto &line : e)
+    m->getMST(mst_edges);
+    for(auto &line : mst_edges)
     {
-        std::cout << line[0] << " - " << line[1] + "\n";    
+        std::cout << line[0] << " - " << line[1] << "\n";    
     }
+    std::vector<int> vers;
+    std::vector<std::array<int,2>> sub_edges;
+    find_odd_v(mst_edges,vers,iters);
+    create_subgraph(vers, sub_edges);
     return 0;
 }

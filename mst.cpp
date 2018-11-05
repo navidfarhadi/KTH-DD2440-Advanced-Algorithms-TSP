@@ -1,29 +1,6 @@
-#include <iostream>
-#include <vector>
-#include <array>
-#include <algorithm>
-#include <cstdlib>
-#include <tuple>
-#include <limits>
-#include <cmath>
-#include "read.hpp"
-#include "odd_degree_subgraph.hpp"
+#include "mst.hpp"
+#include "compute_distance.hpp"
 
-/*
- * This is the file that implements the minimum spanning tree
- * algorithm. We use the algorithm of Prim
- */
-
-class MST
-{
-    public:
-        MST(std::vector<std::array<double,2>> &vertices);
-        void getMST(std::vector<std::array<int,2>> &e);
-        std::vector<std::array<double,2>> vertices;
-        double computeEdgeDist(int ind1, int ind2);
-        double computeDistance(std::array<double,2> v1, std::array<double,2> v2);
-        void print_pq(std::vector<std::pair<int,double>> &pq);
-};
 
 MST::MST(std::vector<std::array<double,2>> &vertices)
 {
@@ -49,7 +26,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     compare comp;
     // we always start with vertic index 0
     // because it does not make a difference
-    
+
     // distance zero
     dist[0] = 0;
     // all other have max distance
@@ -111,7 +88,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     }
     for(int i = 0; i < size; i++)
     {
-        std::cerr << "pred[" << i << "] == " << pred[i] << "\n"; 
+        std::cerr << "pred[" << i << "] == " << pred[i] << "\n";
         if(pred[i] >= 0)
         {
             // then it is a valid predecessor
@@ -122,17 +99,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
 
 double MST::computeEdgeDist(int ind1, int ind2)
 {
-    return computeDistance(vertices[ind1],vertices[ind2]);
-}
-
-// computes the euclidian distance between two points
-// no rounding is made as an adjustment for the christofides algorithm
-double MST::computeDistance(std::array<double,2> v1, std::array<double,2> v2)
-{
-    double sum = (v1.at(0) - v2.at(0))*(v1.at(0) - v2.at(0));
-    sum += (v1.at(1) - v2.at(1))*(v1.at(1) - v2.at(1));
-    sum = std::sqrt(sum);
-    return sum;
+    return compute_distance(vertices[ind1],vertices[ind2]);
 }
 
 void MST::print_pq(std::vector<std::pair<int,double>> &pq)
@@ -142,25 +109,4 @@ void MST::print_pq(std::vector<std::pair<int,double>> &pq)
     {
         std::cerr << line.first << " dist: " << line.second << "\n";
     }
-}
-
-
-int main()
-{
-    int iters;
-    std::cin >> iters;
-    std::vector<std::array<double,2>> v(iters);
-    read_in_stdin(v);
-    std::vector<std::array<int,2>> mst_edges;
-    MST *m = new MST(v);
-    m->getMST(mst_edges);
-    for(auto &line : mst_edges)
-    {
-        std::cout << line[0] << " - " << line[1] << "\n";    
-    }
-    std::vector<int> vers;
-    std::vector<std::array<int,2>> sub_edges;
-    find_odd_v(mst_edges,vers,iters);
-    create_subgraph(vers, sub_edges);
-    return 0;
 }

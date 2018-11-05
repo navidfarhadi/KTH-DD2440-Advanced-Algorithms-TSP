@@ -1,6 +1,9 @@
 CC = g++-7
 OUT_FILE = a.out
 
+DIRS := . Blossom5 Blossom5/GEOM Blossom5/MinCost
+SOURCES := $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
+
 uname_S=$(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 ifeq ($(uname_S),Linux)
@@ -9,7 +12,7 @@ ifeq ($(uname_S),Linux)
 endif
 
 all:
-		$(CC) *.cpp -g -O2 -Wall -o $(OUT_FILE) -std=gnu++14
+		$(CC) $(SOURCES) -g -O2 -Wall -o $(OUT_FILE) -std=gnu++14
 
 clean:
 		rm $(OUT_FILE)

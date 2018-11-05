@@ -34,5 +34,11 @@ int main()
         std::cout << edge[0] << " - " << edge[1] << "\n";
     }
 
+    std::vector<std::array<int,2>> multigraph;
+    multigraph.reserve(mst_edges.size() + matching_edges.size());
+    multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
+    multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
+
+
     return 0;
 }

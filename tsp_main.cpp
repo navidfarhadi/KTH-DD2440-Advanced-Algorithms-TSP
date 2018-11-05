@@ -29,16 +29,15 @@ int main()
     unsigned int subgraphNumVertices = oddVertexIndices.size();
     find_perfect_matching(sub_edges, vertices, subgraphNumVertices, matching_edges);
 
-    std::cout << "Perfect matching edges:\n";
-    for (auto &edge : matching_edges) {
-        std::cout << edge[0] << " - " << edge[1] << "\n";
-    }
-
     std::vector<std::array<int,2>> multigraph;
     multigraph.reserve(mst_edges.size() + matching_edges.size());
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
+    std::cout << "Perfect matching and MST union edges:\n";
+    for (auto &edge : multigraph) {
+        std::cout << edge[0] << " - " << edge[1] << "\n";
+    }
 
     return 0;
 }

@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <map>
-
 #include "read.hpp"
 #include "mst.hpp"
 #include "odd_degree_subgraph.hpp"
@@ -21,9 +20,9 @@ int main()
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
-    std::cout << "MST edges:\n";
+    std::cerr << "MST edges:\n";
     for (auto &edge : mst_edges) {
-        std::cout << edge[0] << " - " << edge[1] << "\n";
+        std::cerr << edge[0] << " - " << edge[1] << "\n";
     }
 
     //  Odd degree vertex subgraph
@@ -41,54 +40,54 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    std::cout << "Perfect matching and MST union edges:\n";
+    std::cerr << "Perfect matching and MST union edges:\n";
     for (auto &edge : multigraph) {
-        std::cout << edge[0] << " - " << edge[1] << "\n";
+        std::cerr << edge[0] << " - " << edge[1] << "\n";
     }
 
     // Convert graph to a map of vectors
     std::map<int,std::vector<int>> new_graph;
     changeToMap(multigraph, new_graph);
 
-    std::cout << "size of new graph: " << new_graph.size() << std::endl;
+    std::cerr << "size of new graph: " << new_graph.size() << std::endl;
 
     for (const auto &p : new_graph)
     {
-        std::cout << "Node:" << p.first << std::endl << "Edges to: ";
+        std::cerr << "Node:" << p.first << std::endl << "Edges to: ";
         for(const auto &q : p.second)
         {
-            std::cout << q << " ";
+            std::cerr << q << " ";
         }
-        std::cout << std::endl;
+        std::cerr << std::endl;
     }
 
     if(hasEulerianCircuit(new_graph))
     {
-        std::cout << "Graph has Eulerian circuit" << std::endl;
+        std::cerr << "Graph has Eulerian circuit" << std::endl;
 
         std::vector<int> eulerian_path;
         findEulerianCircuit(new_graph,eulerian_path);
 
-        std::cout << "Eulerian circuit: ";
+        std::cerr << "Eulerian circuit: ";
         for(int i = 0; i < eulerian_path.size(); i++)
         {
-            std::cout << eulerian_path[i] << " ";
+            std::cerr << eulerian_path[i] << " ";
         }
-        std::cout << std::endl;
+        std::cerr << std::endl;
 
         std::vector<int> hamiltonian_circuit(eulerian_path);
         findHamiltonianCircuit(hamiltonian_circuit,numVertices);
 
-        std::cout << "Hamiltonian circuit: ";
+        std::cerr << "Hamiltonian circuit: ";
         for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
-            std::cout << hamiltonian_circuit[i] << " ";
+            std::cout << hamiltonian_circuit[i] << std::endl;
         }
-        std::cout << std::endl;
+        // std::cerr << std::endl;
     }
     else
     {
-        std::cout << "Graph does NOT have Eulerian circuit" << std::endl;
+        std::cerr << "Graph does NOT have Eulerian circuit" << std::endl;
     }
 
     return 0;

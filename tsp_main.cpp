@@ -34,8 +34,7 @@ int main()
 
     // Min weight perfect matching
     std::vector<std::array<int,2>> matching_edges;
-    unsigned int subgraphNumVertices = oddVertexIndices.size();
-    find_perfect_matching(sub_edges, vertices, subgraphNumVertices, matching_edges);
+    find_perfect_matching(sub_edges, vertices, oddVertexIndices, matching_edges);
 
     std::vector<std::array<int,2>> multigraph;
     multigraph.reserve(mst_edges.size() + matching_edges.size());

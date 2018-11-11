@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <map>
 #include <stdio.h>
 #include "perfect_matching.hpp"
 #include "compute_distance.hpp"
@@ -16,17 +17,33 @@
  *  find_perfect_matching
  *  @param graph Vector of [v1,v2] edge pairs (vertex indices)
  *  @param vertices Vector of [x,y] coordinates for all vertices (full graph)
- *  @param vertexCount The number of vertices for graph
+ *  @param usedVertices Vector of vertex indices used in graph
  *  @param matching The matching to be calculated by reference
  */ 
-void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<std::array<double,2>> &vertices, unsigned int vertexCount, std::vector<std::array<int,2>> &matching) {
+void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<std::array<double,2>> &vertices, std::vector<int> &usedVertices, std::vector<std::array<int,2>> &matching) {
 
+    unsigned int numVertices = usedVertices.size();
     unsigned int numEdges = graph.size();
 
-    PerfectMatching *pm = new PerfectMatching(vertexCount, numEdges);
+    PerfectMatching *pm = new PerfectMatching(numVertices, numEdges);
+    // std::cout << "Finding perfect matching, edges:\n";
+
+    // Can't use arbitrary vertex indices, as the implementation
+    // needs all sequential 0..N (N = numVertices) indices, therefore
+    // we make a mapping.
+    std::map<int, int> sequentialIndices;
+    for (unsigned int vertex = 0; vertex < usedVertices.size(); vertex++) {
+        sequentialIndices.insert({usedVertices.at(vertex), vertex});
+    }
+
     for (auto &edge : graph) {
         double distance = compute_distance(vertices[edge[0]], vertices[edge[1]]);
-        pm->AddEdge(edge[0], edge[1], distance);
+
+        int vertA = sequentialIndices.find(edge[0])->second;
+        int vertB = sequentialIndices.find(edge[1])->second;
+        
+        // std::cout << vertA << " -> " << vertB << " = " << distance << std::endl;
+        pm->AddEdge(vertA, vertB, distance);
     }
 
     pm->Solve();

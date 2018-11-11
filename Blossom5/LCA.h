@@ -1,44 +1,3 @@
-/*
-
-LCA.h - Imlementation of LCA data structure described in
-
-O. Berkman, U. Vishkin: Recursive Star-Tree Parallel Data Structure. SIAM J. Comput. 22(2): 221-242 (1993)
-
-It takes O(n \log n) space (and O(n \log n) time for construction). The memory requirement can be
-reduced to O(n) by defining LCA_BLOCKS. The implementation then follows the approach described in
-
-J. Fischer, V. Heun: Theoretical and Practical Improvements on the RMQ-Problem, with Applications to LCA and LCE.
-	Proceedings of the 17th Annual Symposium on Combinatorial Pattern Matching
-	(CPM'06), Lecture Notes in Computer Science 4009, 36-48, Springer-Verlag, 2006.
-
-(although in-block queries are computed naively in O(K) worst-case time, where K is the size of the block,
-rather than as described by Fischer and Heun).
-
-Written by Vladimir Kolmogorov, vnk@adastral.ucl.ac.uk.
-
-//  example for 
-//      4
-//     / \
-//    2   3
-//   / \
-//  0   1
-// (Note: the ordering of nodes is in the tree preorder!!!)
-
-	LCATree* lca = new LCATree(5);
-	char A0, A1, A2, A3, A4;
-
-	lca->Add(&A0, &A2);
-	lca->Add(&A1, &A2);
-	lca->Add(&A2, &A4);
-	lca->Add(&A3, &A4);
-	lca->AddRoot(&A4);
-
-	int result = lca->GetLCA(1, 3); // should be 4
-	delete lca;
-
-
-*/
-
 #ifndef GNAKDLATHJSTHAJSRNAKSJDA
 #define GNAKDLATHJSTHAJSRNAKSJDA
 
@@ -58,20 +17,12 @@ public:
 	LCATree(int node_num_max);
 	~LCATree();
 
-	// construct tree. Nodes must be added in the tree preorder!!!
-	// First call returns 0, second returns 1, and so on.
 	PreorderId Add(NodeId i, NodeId i_parent);
 	PreorderId AddRoot(NodeId i); // completes tree construction
 
 	PreorderId GetLCA(PreorderId i, PreorderId j);
-	// Let i0=i, j0=j be the input nodes, and let r = LCA(i0,j0).
-	// This function sets i and j to be the immediate children of r 
-	// such that i is a descendant of i0 and j is a descendant of j0.
-	// There must hold i0!=r, j0!=r.
 	void GetPenultimateNodes(PreorderId& i, PreorderId& j);
 
-
-//////////////////////////////////////////////////////////////////////////
 private:
 	int n, n_max, K, k_max;
 	int** array;
@@ -214,10 +165,6 @@ inline LCATree::PreorderId LCATree::AddRoot(NodeId i)
 
 	return n-1;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
 inline int LCATree::GetLCADirect(int i, int j)
 {

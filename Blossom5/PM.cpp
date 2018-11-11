@@ -1,8 +1,465 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "PMimplementation.h"
-#include "MinCost.h"
+#include "PM.h"
+
+struct Node
+{
+	PerfectMatching::REAL sum; 
+	Node* match;
+	Node* parent;
+	Node* child;
+	Node* sibling;
+	int lca_preorder;
+};
+
+
+int CheckPerfectMatchingOptimality(int node_num, int edge_num, int* edges, int* weights, PerfectMatching* pm, PerfectMatching::REAL threshold)
+{
+	int _i, _j, _e;
+	Node* i;
+	Node* j;
+	int blossom_num = pm->GetBlossomNum();
+	int* blossom_parents = new int[node_num+blossom_num];
+	PerfectMatching::REAL* twice_y = new PerfectMatching::REAL[node_num+blossom_num];
+
+	PerfectMatching::REAL y_blossom_min = 0;
+	PerfectMatching::REAL slack_min = 0;
+	PerfectMatching::REAL active_slack_max = 0;
+
+	
+	pm->GetDualSolution(blossom_parents, twice_y);
+	Node* nodes = new Node[node_num+blossom_num+1];
+	memset(nodes, 0, (node_num+blossom_num+1)*sizeof(Node));
+	Node* ROOT = nodes+node_num+blossom_num;
+	for (_i=0, i=nodes; _i<node_num+blossom_num; _i++, i++)
+	{
+		i->sum = twice_y[_i];
+		if (_i >= node_num && y_blossom_min > i->sum) y_blossom_min = i->sum;
+		if (blossom_parents[_i] >= 0)
+		{
+			if (blossom_parents[_i]<node_num || blossom_parents[_i]>=node_num+blossom_num)
+			{
+				delete [] nodes;
+				delete [] blossom_parents;
+				delete [] twice_y;
+				return 2;
+			}
+			i->parent = nodes + blossom_parents[_i];
+			i->sibling = i->parent->child;
+			i->parent->child = i;
+		}
+	}
+	delete [] blossom_parents;
+	delete [] twice_y;
+
+	for (i=nodes; i<nodes+node_num+blossom_num; i++)
+	{
+		if (!i->parent)
+		{
+			i->parent = ROOT;
+			i->sibling = ROOT->child;
+			ROOT->child = i;
+		}
+	}
+
+	LCATree* lca_tree = new LCATree(node_num+blossom_num+1);
+	Node** rev_mapping = new Node*[node_num+blossom_num];
+
+	i = ROOT;
+	while ( 1 )
+	{
+		if (i->child)
+		{
+			if (i < nodes+node_num) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
+			i->child->sum += i->sum;
+			i = i->child;
+		}
+		else
+		{
+			if (i >= nodes+node_num) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
+			while ( 1 )
+			{
+				i->lca_preorder = lca_tree->Add(i, i->parent);
+				rev_mapping[i->lca_preorder] = i;
+				if (i->sibling) break;
+				i = i->parent;
+				if (i == ROOT)
+				{
+					i->lca_preorder = lca_tree->AddRoot(i);
+					break;
+				}
+			}
+			if (i == ROOT) break;
+			i = i->sibling;
+			i->sum += i->parent->sum;
+		}
+	}
+
+	int matched_num = 0;
+	for (_e=0; _e<edge_num; _e++)
+	{
+		_i = edges[2*_e];
+		_j = edges[2*_e+1];
+		if (_i<0 || _j<0 || _i>=node_num || _j>=node_num || _i==_j) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
+
+		int lca_i = nodes[_i].lca_preorder;
+		int lca_j = nodes[_j].lca_preorder;
+		lca_tree->GetPenultimateNodes(lca_i, lca_j);
+		i = rev_mapping[lca_i];
+		j = rev_mapping[lca_j];
+		PerfectMatching::REAL twice_slack = 2*weights[_e] - (nodes[_i].sum - i->parent->sum) - (nodes[_j].sum - j->parent->sum);
+		if (slack_min > twice_slack) slack_min = twice_slack;
+		if (pm->GetSolution(_e))
+		{
+			if (pm->GetMatch(_i)!=_j || pm->GetMatch(_j)!=_i || i->match || j->match) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
+			i->match = j;
+			j->match = i;
+			if (active_slack_max < twice_slack) active_slack_max = twice_slack;
+			matched_num += 2;
+		}
+	}
+
+	delete [] nodes;
+	delete lca_tree;
+	delete [] rev_mapping;
+
+	if (matched_num != node_num) return 2;
+
+	if (y_blossom_min < -threshold || slack_min < -threshold || active_slack_max > threshold)
+	{
+		printf("ERROR in CheckPerfectMatchingOptimality():\n");
+		if ( ((PerfectMatching::REAL)1 / 2) == 0 )
+			printf("\ty_blossom_min=%d\n\tslack_min=%d\n\tactive_slack_max=%d\n", (int)y_blossom_min, (int)slack_min, (int)active_slack_max);
+		else
+			printf("\ty_blossom_min=%.15f\n\tslack_min=%.15f\n\tactive_slack_max=%.15f\n", (double)y_blossom_min, (double)slack_min, (double)active_slack_max);
+		return 1;
+	}
+
+	return 0;
+}
+
+double ComputePerfectMatchingCost(int node_num, int edge_num, int* edges, int* weights, PerfectMatching* pm)
+{
+	int i;
+	int j;
+	int e;
+	double cost = 0;
+
+	int* nodes = new int[node_num];
+	memset(nodes, 0, node_num*sizeof(int));
+	for (e=0; e<edge_num; e++)
+	{
+		if (pm->GetSolution(e))
+		{
+			i = edges[2*e];
+			j = edges[2*e+1];
+			nodes[i] ++;
+			nodes[j] ++;
+			cost += weights[e];
+		}
+	}
+	for (i=0; i<node_num; i++)
+	{
+		if (nodes[i] != 1)
+		{
+			printf("ComputeCost(): degree = %d!\n", nodes[i]);
+			exit(1);
+		}
+	}
+	delete [] nodes;
+	return cost;
+}
+
+
+template <typename FlowType, typename CostType> 
+	MinCost<FlowType, CostType>::MinCost(int _nodeNum, int _edgeNumMax, void (*err_function)(const char *))
+	: nodeNum(_nodeNum),
+	  edgeNum(0),
+	  edgeNumMax(_edgeNumMax),
+	  counter(0),
+	  cost(0),
+	  error_function(err_function)
+{
+	nodes = (Node*) malloc(nodeNum*sizeof(Node));
+	arcs = (Arc*) malloc(2*edgeNumMax*sizeof(Arc));
+	if (!nodes || !arcs) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
+
+	memset(nodes, 0, nodeNum*sizeof(Node));
+	memset(arcs, 0, 2*edgeNumMax*sizeof(Arc));
+	firstActive = &nodes[nodeNum];
+#ifdef MINCOST_DEBUG
+	for (int i=0; i<nodeNum; i++) nodes[i].id = i;
+#endif
+}
+
+template <typename FlowType, typename CostType> 
+	MinCost<FlowType, CostType>::~MinCost()
+{
+	free(nodes);
+	free(arcs);
+}
+
+template <typename FlowType, typename CostType> 
+	void MinCost<FlowType, CostType>::Init()
+{
+	Node* i;
+	Arc* a;
+
+	for (a=arcs; a<arcs+2*edgeNum; a++)
+	{
+		if (a->r_cap > 0 && a->GetRCost() < 0) PushFlow(a, a->r_cap);
+	}
+
+	Node** lastActivePtr = &firstActive;
+	for (i=nodes; i<nodes+nodeNum; i++)
+	{
+		if (i->excess > 0)
+		{
+			*lastActivePtr = i;
+			lastActivePtr = &i->next;
+		}
+		else i->next = NULL;
+	}
+	*lastActivePtr = &nodes[nodeNum];
+}
+
+
+template <typename FlowType, typename CostType> 
+	FlowType MinCost<FlowType, CostType>::Augment(Node* start, Node* end)
+{
+	FlowType delta = (start->excess < -end->excess) ? start->excess : -end->excess;
+	Arc* a;
+
+	for (a=end->parent; a; a=a->sister->head->parent)
+	{
+		if (delta > a->r_cap) delta = a->r_cap;
+	}
+	assert(delta > 0);
+
+	end->excess += delta;
+	for (a=end->parent; a; a=a->head->parent)
+	{
+		DecreaseRCap(a, delta);
+		a = a->sister;
+		IncreaseRCap(a, delta);
+	}
+	start->excess -= delta;
+
+	return delta;
+}
+
+template <typename FlowType, typename CostType> 
+	void MinCost<FlowType, CostType>::Dijkstra(Node* start)
+{
+	assert(start->excess > 0);
+
+	Node* i;
+	Node* j;
+	Arc* a;
+	CostType d;
+	Node* permanentNodes;
+
+	int FLAG0 = ++ counter; 
+	int FLAG1 = ++ counter; 
+
+	start->parent = NULL;
+	start->flag = FLAG1;
+	queue.Reset();
+	queue.Add(start, 0);
+
+	permanentNodes = NULL;
+
+	while ( (i=queue.RemoveMin(d)) )
+	{
+		if (i->excess < 0)
+		{
+			FlowType delta = Augment(start, i);
+			cost += delta*(d - i->pi + start->pi);
+			for (i=permanentNodes; i; i=i->next_permanent) i->pi += d;
+			break;
+		}
+
+		i->pi -= d;
+		i->flag = FLAG0;
+		i->next_permanent = permanentNodes;
+		permanentNodes = i;
+
+		for (a=i->firstNonsaturated; a; a=a->next)
+		{
+			j = a->head;
+			if (j->flag == FLAG0) continue;
+			d = a->GetRCost();
+			if (j->flag == FLAG1)
+			{
+				if (d >= queue.GetKey(j)) continue;
+				queue.DecreaseKey(j, d);
+			}
+			else
+			{
+				queue.Add(j, d);
+				j->flag = FLAG1;
+			}
+			j->parent = a;
+		}
+
+	}
+}
+
+
+template <typename FlowType, typename CostType> 
+	CostType MinCost<FlowType, CostType>::Solve()
+{
+	Node* i;
+	
+	while ( 1 )
+	{
+		i = firstActive;
+		if (i == &nodes[nodeNum]) break;
+		firstActive = i->next;
+		i->next = NULL;
+		if (i->excess > 0)
+		{
+			Dijkstra(i);
+			if (i->excess > 0 && !i->next) 
+			{ 
+				i->next = firstActive; 
+				firstActive = i; 
+			}
+		}
+	}
+#ifdef MINCOST_DEBUG
+	TestOptimality();
+	TestCosts();
+#endif
+
+	return cost;
+}
+
+
+template <typename FlowType, typename CostType> 
+	void MinCost<FlowType, CostType>::TestOptimality()
+{
+	Node* i;
+	Arc* a;
+
+	for (i=nodes; i<nodes+nodeNum; i++)
+	{
+		if (i->excess != 0)
+		{
+			assert(0);
+		}
+		for (a=i->firstSaturated; a; a=a->next)
+		{
+			if (a->r_cap != 0)
+			{
+				assert(0);
+			}
+		}
+		for (a=i->firstNonsaturated; a; a=a->next)
+		{
+			CostType c = a->GetRCost();
+			if (a->r_cap <= 0 || a->GetRCost() < -1e-5)
+			{
+				assert(0);
+			}
+		}
+	}
+}
+
+#ifdef MINCOST_DEBUG
+
+template <typename FlowType, typename CostType> 
+	void MinCost<FlowType, CostType>::TestCosts()
+{
+	Arc* a;
+
+	CostType _cost = 0;
+
+	for (a=arcs; a<arcs+2*edgeNum; a+=2)
+	{
+		assert(a->r_cap + a->sister->r_cap == a->cap_orig + a->sister->cap_orig);
+		_cost += a->cost*(a->cap_orig - a->r_cap);
+	}
+
+	CostType delta = cost - _cost;
+	if (delta < 0) delta = -delta;
+	if (delta >= 1e-5)
+	{
+		assert(0);
+	}
+}
+
+#endif
+
+
+
+
+
+#define FLOW_INFTY ((int)0x00fffffff)
+
+template <typename CostType> 
+	DualMinCost<CostType>::DualMinCost(int _nodeNum, int _edgeNumMax)
+	: MinCost<int,CostType>(_nodeNum+1, _edgeNumMax+2*_nodeNum)
+{
+	source = _nodeNum;
+}
+
+template <typename CostType> 
+	DualMinCost<CostType>::~DualMinCost()
+{
+}
+
+template <typename CostType> 
+	void DualMinCost<CostType>::AddUnaryTerm(NodeId i, int objective_coef)
+{
+	MinCost<int, CostType>::AddNodeExcess(i, objective_coef);
+	MinCost<int, CostType>::AddNodeExcess(source, -objective_coef);
+}
+
+template <typename CostType> 
+	void DualMinCost<CostType>::SetLowerBound(NodeId i, CostType cmin)
+{
+	DualMinCost<CostType>::AddEdge(i, source, FLOW_INFTY, 0, -cmin);
+}
+
+template <typename CostType> 
+	void DualMinCost<CostType>::SetUpperBound(NodeId i, CostType cmax)
+{
+	DualMinCost<CostType>::AddEdge(source, i, FLOW_INFTY, 0, cmax);
+}
+
+template <typename CostType> 
+	void DualMinCost<CostType>::AddConstraint(NodeId i, NodeId j, CostType cmax)
+{
+	DualMinCost<CostType>::AddEdge(i, j, FLOW_INFTY, 0, cmax);
+}
+
+template <typename CostType> 
+	void DualMinCost<CostType>::Solve()
+{
+	MinCost<int,CostType>::Solve();
+}
+
+template <typename CostType> 
+	CostType DualMinCost<CostType>::GetSolution(NodeId i)
+{
+	return MinCost<int, CostType>::nodes[source].pi - MinCost<int, CostType>::nodes[i].pi;
+}
+
+
+
+
+#ifdef _MSC_VER
+#pragma warning(disable: 4661)
+#endif
+
+
+template class MinCost<int,int>;
+template class MinCost<int,double>;
+
+template class DualMinCost<int>;
+template class DualMinCost<double>;
 
 void PerfectMatching::ComputeEpsGlobal()
 {
@@ -172,7 +629,7 @@ void PerfectMatching::ComputeEpsCC()
 		}
 		component_num ++;
 	}
-	//printf("%d CCs ", component_num);
+	
 }
 
 
@@ -203,7 +660,7 @@ void PerfectMatching::ComputeEpsSCC()
 	}
 	Tree* stack = NULL;
 
-	// first DFS
+	
 	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
 	{
 		t0 = r->tree;
@@ -324,7 +781,7 @@ void PerfectMatching::ComputeEpsSCC()
 	}
 
 	delete [] array;
-	//printf("%d SCCs ", component_num);
+	
 }
 
 void PerfectMatching::CommitEps()
@@ -399,7 +856,7 @@ bool PerfectMatching::UpdateDuals()
 
 	double start_time = get_time();
 
-	////////////////////////////////////////////////////////////////////////////////////
+	
 	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
 	{
 		Tree* t = r->tree;
@@ -506,7 +963,7 @@ void PerfectMatching::Expand(Node* b)
 		tmp_item->i = i; tmp_item->blossom_parent = i->blossom_parent; tmp_item->blossom_grandparent = i->blossom_grandparent;
 		i->flag = 2;
 
-		// blossom_selfloops
+		
 		i->is_outer = 1;
 		while ((a=i->blossom_selfloops))
 		{
@@ -522,7 +979,7 @@ void PerfectMatching::Expand(Node* b)
 		tmp_item->i = j; tmp_item->blossom_parent = j->blossom_parent; tmp_item->blossom_grandparent = j->blossom_grandparent;
 		j->flag = 2;
 
-		// blossom_selfloops
+		
 		j->is_outer = 1;
 		while ((a=j->blossom_selfloops))
 		{
@@ -592,11 +1049,11 @@ void PerfectMatching::Expand(Node* b)
 		i->tree_sibling_next = NULL;
 	}
 
-	// go through inner arcs
+	
 	i = k;
 	while ( 1 )
 	{
-		// "-" node
+		
 		if (i->is_blossom)
 		{
 			a = ARC_TO_EDGE_PTR(i->match);
@@ -611,7 +1068,7 @@ void PerfectMatching::Expand(Node* b)
 		i->is_processed = 1;
 		if (i->tree_parent == b->tree_parent) break;
 		i = ARC_HEAD(i->tree_parent);
-		// "+" node
+		
 		FOR_ALL_EDGES(i, a, dir, I)
 		{
 			j = a->head[dir];
@@ -630,7 +1087,7 @@ void PerfectMatching::Expand(Node* b)
 		i = ARC_HEAD(i->match);
 	}
 
-	// go through boundary arcs
+	
 	for (tmp_item=expand_tmp_list->ScanFirst(); tmp_item; tmp_item=expand_tmp_list->ScanNext())
 	{
 		i = tmp_item->i;
@@ -823,9 +1280,6 @@ void PerfectMatching::InitGreedy(bool allocate_trees)
 	last_root->tree_sibling_next = NULL;
 }
 
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
 
 PerfectMatching::Node* PerfectMatching::FindBlossomRootInit(Edge* a0)
 {
@@ -1009,14 +1463,8 @@ void PerfectMatching::AugmentBranchInit(Node* i0, Node* r)
 	tree_num --;
 }
 
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////
 
-// true_slack(a) = slack(a) + ...
 
-// i->flag=0, i->is_processed=1:              true_slack -= eps
-// i->flag=1, i->match->head->is_processed=1: true_slack += eps - slack(i->match)
 
 void PerfectMatching::InitGlobal()
 {
@@ -1024,7 +1472,7 @@ void PerfectMatching::InitGlobal()
 	Node* j;
 	Node* r;
 	Node* r2;
-	Node* r3 = NULL; // initialize to prevent compiler warning
+	Node* r3 = NULL; 
 	Edge* a;
 	EdgeIterator I;
 	int dir;
@@ -1066,7 +1514,7 @@ void PerfectMatching::InitGlobal()
 
 				if (j->tree == &TREE)
 				{
-					// same tree
+					
 					if (j->flag == 0)
 					{
 						REAL slack = a->slack;
@@ -1077,25 +1525,25 @@ void PerfectMatching::InitGlobal()
 							critical_eps = slack/2;
 							critical_arc = EDGE_DIR_TO_ARC(a, dir);
 							if (critical_eps <= eps) break;
-							//pq.DecreaseUpperBound(critical_eps);
+							
 						}
 					}
 				}
 				else if (j->flag == 0)
 				{
-					// different tree
+					
 					if (critical_eps >= a->slack || critical_arc == NULL)
 					{
 						flag = AUGMENT;
 						critical_eps = a->slack;
 						critical_arc = EDGE_DIR_TO_ARC(a, dir);
 						if (critical_eps <= eps) break;
-						//pq.DecreaseUpperBound(critical_eps);
+						
 					}
 				}
 				else
 				{
-					// free node
+					
 					if (a->slack > eps)
 					{
 						if (a->slack < critical_eps)
@@ -1137,7 +1585,7 @@ void PerfectMatching::InitGlobal()
 				break;
 			}
 
-			// move i
+			
 			if (i->first_tree_child) i = i->first_tree_child;
 			else
 			{
@@ -1158,7 +1606,7 @@ void PerfectMatching::InitGlobal()
 					eps = a->slack;
 					assert(eps < critical_eps);
 
-					// continue growth
+					
 					i = ARC_TAIL(aa);
 					j = ARC_HEAD(aa);
 
@@ -1176,7 +1624,7 @@ void PerfectMatching::InitGlobal()
 			}
 		}
 
-		// update slacks
+		
 		i = r;
 		while ( 1 )
 		{
@@ -1217,12 +1665,12 @@ void PerfectMatching::InitGlobal()
 		j = ARC_HEAD(critical_arc);
 		if (flag == SHRINK)
 		{
-			// shrink
+			
 			ShrinkInit(ARC_TO_EDGE_PTR(critical_arc), r);
 		}
 		else
 		{
-			// augment
+			
 			AugmentBranchInit(i, r);
 			if (j->is_outer)
 			{
@@ -1620,7 +2068,7 @@ bool PerfectMatching::ProcessEdge00(Edge* a, bool update_boundary_edge)
 			GET_PENULTIMATE_BLOSSOM(j);
 			prev[dir] = j;
 			last[dir] = prev[dir]->blossom_parent;
-			//assert(last[dir]->is_outer);
+			
 		}
 	}
 
@@ -1680,7 +2128,7 @@ inline void PerfectMatching::AugmentBranch(Node* i0)
 	FOR_ALL_TREE_EDGES_X(t, e, dir, T)
 	{
 		t2 = e->head[dir];
-		e->head[1-dir] = NULL; // mark it for deletion
+		e->head[1-dir] = NULL; 
 
 		t2->pq_current = e;
 		t2->dir_current = dir;
@@ -1720,7 +2168,7 @@ inline void PerfectMatching::AugmentBranch(Node* i0)
 		MOVE_NODE_IN_TREE(i);
 	}
 
-	///////////////////////////////////////////////////////////////////
+	
 
 	FOR_ALL_TREE_EDGES(t, e, dir)
 	{
@@ -1753,7 +2201,7 @@ inline void PerfectMatching::AugmentBranch(Node* i0)
 		ProcessEdge00((Edge*)q);
 	}
 
-	///////////////////////////////////////////////////////////////////
+	
 
 	r->flag = 2;
 	r->is_processed = 0;
@@ -1773,7 +2221,7 @@ inline void PerfectMatching::AugmentBranch(Node* i0)
 		MOVE_NODE_IN_TREE(i);
 	}
 
-	///////////////////////////////////////////////////////////////////
+	
 
 	i = i0;
 	if ( !i0->is_tree_root )
@@ -1818,8 +2266,8 @@ void PerfectMatching::Augment(Edge* a)
 
 inline void PerfectMatching::GrowNode(Node* i)
 {
-	//assert(i->is_outer);
-	//assert(i->flag == 0);
+	
+	
 
 	Edge* a;
 	EdgeIterator I;
@@ -1873,13 +2321,13 @@ inline void PerfectMatching::GrowNode(Node* i)
 		}
 	}
 
-	//assert(!i->is_processed);
+	
 	i->is_processed = 1;
 
 	if (!i->is_tree_root)
 	{
 		j = ARC_HEAD(i->match);
-		//assert(!j->is_processed);
+		
 		j->is_processed = 1;
 		if (j->is_blossom)
 		{
@@ -1898,7 +2346,7 @@ inline void PerfectMatching::GrowNode(Node* i)
 
 void PerfectMatching::GrowTree(Node* r, bool new_subtree)
 {
-	//assert(r->flag == 0);
+	
 
 	Node* i = r;
 	Node* j;
@@ -1915,7 +2363,7 @@ void PerfectMatching::GrowTree(Node* r, bool new_subtree)
 	{
 		if (!i->is_tree_root)
 		{
-			// process "-" node
+			
 			i = ARC_HEAD(i->match);
 			FOR_ALL_EDGES(i, a, dir, I)
 			{
@@ -1939,7 +2387,7 @@ void PerfectMatching::GrowTree(Node* r, bool new_subtree)
 			}
 			i = ARC_HEAD(i->match);
 		}
-		// process "+" node
+		
 		GrowNode(i);
 		if (tree_num != tree_num0) break;
 
@@ -1959,7 +2407,7 @@ void PerfectMatching::Solve(bool finish)
 	Node* j;
 	Node* r;
 	Node* r2;
-	Node* r3 = NULL; // initialize to prevent compiler warning
+	Node* r3 = NULL; 
 	PriorityQueue<REAL>::Item* q;
 	Edge* a;
 	Tree* t;
@@ -2002,15 +2450,15 @@ void PerfectMatching::Solve(bool finish)
 
 	memset(&stat, 0, sizeof(Stat));
 
-	///////////////////////////////////////////////////////
-	//       first pass - initialize auxiliary graph     //
-	///////////////////////////////////////////////////////
+	
+	
+	
 
 	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
 	{
-		//assert(!r->is_processed);
+		
 		t = r->tree;
-		//assert(!t->first[0] && !t->first[1]);
+		
 
 		EdgeIterator I;
 		FOR_ALL_EDGES(r, a, dir, I)
@@ -2019,7 +2467,7 @@ void PerfectMatching::Solve(bool finish)
 			if (j->flag == 2) t->pq0.Add(a);
 			else if (j->is_processed)
 			{
-				//assert(j->flag == 0);
+				
 				if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
 				j->tree->pq_current->pq00.Add(a);
 			}
@@ -2028,9 +2476,9 @@ void PerfectMatching::Solve(bool finish)
 		FOR_ALL_TREE_EDGES(t, e, dir) e->head[dir]->pq_current = NULL;
 	}
 
-	///////////////////////////////////////////////////////
-	//                  main loop                        //
-	///////////////////////////////////////////////////////
+	
+	
+	
 
 	while ( 1 )
 	{
@@ -2046,9 +2494,9 @@ void PerfectMatching::Solve(bool finish)
 
 			int tree_num1 = tree_num;
 
-			//////////////////////////////////////////////////////////////////////
-			// step 1 - traversing auxiliary graph, setting pq_current pointers //
-			//////////////////////////////////////////////////////////////////////
+			
+			
+			
 			t->pq_current = t;
 			if (options.update_duals_before)
 			{
@@ -2095,9 +2543,9 @@ void PerfectMatching::Solve(bool finish)
 				}
 			}
 
-			/////////////////////////////////
-			//   step 2 - growing tree     //
-			/////////////////////////////////
+			
+			
+			
 			eps = t->eps;
 			REAL twice_eps = 2*eps;
 
@@ -2109,7 +2557,7 @@ void PerfectMatching::Solve(bool finish)
 					dir = (a->head[1]->flag == 2 && a->head[1]->is_outer) ? 1 : 0;
 					GET_OUTER_HEAD(a, 1-dir, i);
 					j = a->head[dir];
-					//assert(i->flag==0 && j->flag==2 && i->is_outer && j->is_outer && i->tree==t);
+					
 
 					j->flag = 1;
 					j->tree = i->tree;
@@ -2138,9 +2586,9 @@ void PerfectMatching::Solve(bool finish)
 				else break;
 			}
 
-			///////////////////////////////////////////////////////////////////////
-			// step 3 - traversing auxiliary graph, clearing pq_current pointers //
-			///////////////////////////////////////////////////////////////////////
+			
+			
+			
 			if ( tree_num1 == tree_num )
 			{
 				t->pq_current = NULL;
@@ -2175,7 +2623,7 @@ void PerfectMatching::Solve(bool finish)
 					if (a_augment && eps_augment <= t->eps) Augment(a_augment);
 					else if (progress && tree_num >= options.single_tree_threshold*node_num)
 					{
-						// continue with the same tree
+						
 						r = t->root;
 						continue;
 					}
@@ -2186,9 +2634,9 @@ void PerfectMatching::Solve(bool finish)
 				}
 			}
 
-			///////////////////////////////////////////////////////////////////////
-			///////////////////////////////////////////////////////////////////////
-			///////////////////////////////////////////////////////////////////////
+			
+			
+			
 
 			r = r2;
 			if (r && !r->is_tree_root) r = r3;
@@ -2197,15 +2645,15 @@ void PerfectMatching::Solve(bool finish)
 		if (tree_num == 0) break;
 
 		if ( tree_num == tree_num0 )
-		  //&& stat.grow_count == stat0.grow_count 
-		  //&& stat.shrink_count == stat0.shrink_count 
-		  //&& stat.expand_count == stat0.expand_count )
+		  
+		  
+		  
 		{
 			if (!UpdateDuals())
 			{
-				if (!IS_INT && delta <= PM_THRESHOLD) // for numerical stability
+				if (!IS_INT && delta <= PM_THRESHOLD) 
 				{
-					//CommitEps();
+					
 					int dual_greedy_update_option = options.dual_greedy_update_option;
 					options.dual_greedy_update_option = 2;
 					UpdateDuals();
@@ -2357,18 +2805,7 @@ void PerfectMatching::StartUpdate()
 		} while ( a );
 	}
 
-	/*
-	for (i0=nodes; i0<nodes+node_num; i0++)
-	{
-		if (i0->is_outer) continue;
-		b = i0->blossom_grandparent;
-		if (b->lca)
-		{
-			delete b->lca;
-			b->lca = NULL;
-		}
-	}
-	*/
+
 
 	nodes[node_num].first_tree_child = NULL;
 }
@@ -2395,7 +2832,7 @@ void PerfectMatching::FinishUpdate()
 		}
 #endif
 
-		//////////////////////////////////////////////////////////////
+		
 		if (!i0->blossom_grandparent->is_removed)
 		{
 			i = i0;
@@ -2408,7 +2845,7 @@ void PerfectMatching::FinishUpdate()
 			} while (i->is_marked);
 			continue;
 		}
-		//////////////////////////////////////////////////////////////
+		
 
 		i = i0->blossom_parent;
 		while ( 1 )
@@ -2694,7 +3131,7 @@ PerfectMatching::Node* PerfectMatching::FindBlossomRoot(Edge* a0)
 		i = ARC_HEAD(i->tree_parent);
 		i->is_marked = 0;
 	}
-	// clear is_marked and is_outer
+	
 	i = ARC_HEAD(a0);
 	while (i != r)
 	{
@@ -2722,8 +3159,8 @@ PerfectMatching::Node* PerfectMatching::FindBlossomRoot(Edge* a0)
 
 void PerfectMatching::Shrink(Edge* a0)
 {
-	//assert(a0->head[0]->is_outer && a0->head[1]->is_outer);
-	//assert(a0->head[0]->flag == 0 && a0->head[1]->flag == 0);
+	
+	
 
 	double start_time = get_time();
 
@@ -2740,7 +3177,7 @@ void PerfectMatching::Shrink(Edge* a0)
 
 	b->first[0] = b->first[1] = NULL;
 
-	// set is_outer=0 for all nodes in the blossom
+	
 	r = FindBlossomRoot(a0);
 	Tree* t = r->tree;
 	REAL eps = t->eps;
@@ -2759,10 +3196,10 @@ void PerfectMatching::Shrink(Edge* a0)
 			continue;
 		}
 
-		// remove i from the list of children
+		
 		REMOVE_FROM_TREE(i);
 
-		// move children of i to the list of children of b
+		
 		if (i->first_tree_child)
 		{
 			j = i->first_tree_child;
@@ -2776,7 +3213,7 @@ void PerfectMatching::Shrink(Edge* a0)
 			}
 		}
 
-		// go to parent
+		
 		i = ARC_HEAD(i->match);
 		i->is_marked = 1;
 		if (i->is_blossom)
@@ -2788,7 +3225,7 @@ void PerfectMatching::Shrink(Edge* a0)
 		i = ARC_HEAD(i->tree_parent); 
 	}
 
-	// move children of r to the list of children of b
+	
 	if (i->first_tree_child)
 	{
 		j = i->first_tree_child;
@@ -2802,7 +3239,7 @@ void PerfectMatching::Shrink(Edge* a0)
 		}
 	}
 
-	// init b
+	
 	b->is_removed = 0;
 	b->is_outer = 1;
 	b->flag = 0;
@@ -2813,7 +3250,7 @@ void PerfectMatching::Shrink(Edge* a0)
 	b->y = -eps;
 	b->is_marked = 0;
 
-	// replace r with b in the tree
+	
 	b->tree_sibling_prev = r->tree_sibling_prev;
 	b->tree_sibling_next = r->tree_sibling_next;
 	Node* b_parent = NULL;
@@ -2836,20 +3273,20 @@ void PerfectMatching::Shrink(Edge* a0)
 		b->match = r->match;
 		b_match = ARC_TO_EDGE_PTR(b->match);
 	}
-	REAL b_match_slack = 0; // initialize to prevent compiler warning
+	REAL b_match_slack = 0; 
 	if (b_match && ARC_HEAD(b->match)->is_blossom)
 	{
 		b_match_slack = b_match->slack;
 		b_match->slack = ARC_HEAD(b->match)->y;
 	}
 
-	// second pass over nodes in the blossom
+	
 	branch = 0;
 	a_prev = EDGE_DIR_TO_ARC(a0, 0);
 	i = ARC_HEAD(a_prev);
 	while ( 1 )
 	{
-		// update Arc::next and Arc::head pointers
+		
 		if (i->flag == 0) i->y += eps;
 		else              i->y -= eps;
 		i->is_processed = 0;
@@ -2864,8 +3301,8 @@ void PerfectMatching::Shrink(Edge* a0)
 				{
 					Node* j0 = a->head[dir];
 					for (j=j0; !j->is_outer && !j->is_marked; j = j->blossom_parent) {}
-					if (j != j0) { /*assert(j->flag == 0);*/ int dir_rev = 1 - dir; MOVE_EDGE(j0, j, a, dir_rev); }
-					if (j->is_marked) // "inner" arc
+					if (j != j0) { int dir_rev = 1 - dir; MOVE_EDGE(j0, j, a, dir_rev); }
+					if (j->is_marked) 
 					{
 						a_inner_ptr = &a->next[dir];
 						a->prev[dir] = a_prev;
@@ -2873,7 +3310,7 @@ void PerfectMatching::Shrink(Edge* a0)
 
 						if (j->flag == 1) a->slack += eps;
 					}
-					else // "boundary" arc
+					else 
 					{
 						*a_inner_ptr = a->next[dir];
 						ADD_EDGE(b, a, dir);
@@ -2951,7 +3388,7 @@ void PerfectMatching::Shrink(Edge* a0)
 			b_match->slack = b_match_slack;
 		}
 		dir = ARC_TO_EDGE_DIR(b->match);
-		//assert(b_match->head[1-dir] == r);
+		
 		MOVE_EDGE(r, b, b_match, dir);
 	}
 

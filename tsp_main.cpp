@@ -21,6 +21,11 @@ int main()
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
+    std::cout << "MST edges:\n";
+    for (auto &edge : mst_edges) {
+        std::cout << edge[0] << " - " << edge[1] << "\n";
+    }
+
     //  Odd degree vertex subgraph
     std::vector<int> oddVertexIndices;
     std::vector<std::array<int,2>> sub_edges;

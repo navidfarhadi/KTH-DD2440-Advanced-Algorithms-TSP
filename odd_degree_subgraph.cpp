@@ -41,8 +41,8 @@ void create_subgraph(std::vector<int> &v, std::vector<std::array<int,2>> &e)
     {
         for(int j = i + 1; j < (int)(v.size()); j++)
         {
-            e.push_back({i,j});
-            std::cerr << "edge: " << i << " " << j << "\n";
+            e.push_back({v[i],v[j]});
+            std::cerr << "edge: " << v[i] << " " << v[j] << "\n";
         }
     }
 }

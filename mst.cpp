@@ -4,7 +4,7 @@
 
 MST::MST(std::vector<std::array<double,2>> &vertices)
 {
-    std::cerr << "MST\n";
+    // std::cerr << "MST\n";
     this->vertices = vertices;
 }
 
@@ -18,7 +18,7 @@ struct compare
 
 void MST::getMST(std::vector<std::array<int,2>> &e)
 {
-    std::cerr << "start getMST\n";
+    // std::cerr << "start getMST\n";
     int size = vertices.size();
     double dist[size];
     int pred[size];
@@ -68,7 +68,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
             visited[v.first] = true;
         }
 
-        std::cerr << "EVALUATING: " << v.first << "\n";
+        // std::cerr << "EVALUATING: " << v.first << "\n";
 
         for(int w = 0; w < size; w++)
         {
@@ -88,7 +88,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     }
     for(int i = 0; i < size; i++)
     {
-        std::cerr << "pred[" << i << "] == " << pred[i] << "\n";
+        // std::cerr << "pred[" << i << "] == " << pred[i] << "\n";
         if(pred[i] >= 0)
         {
             // then it is a valid predecessor
@@ -104,9 +104,9 @@ double MST::computeEdgeDist(int ind1, int ind2)
 
 void MST::print_pq(std::vector<std::pair<int,double>> &pq)
 {
-    std::cerr << "print pq\n";
+    // std::cerr << "print pq\n";
     for(auto &line : pq)
     {
-        std::cerr << line.first << " dist: " << line.second << "\n";
+        // std::cerr << line.first << " dist: " << line.second << "\n";
     }
 }

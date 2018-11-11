@@ -10,15 +10,15 @@
 
 void read_in_stdin(std::vector<std::array<double,2>> &v)
 {
-    std::cerr << "Read data in ...\n";
+    // std::cerr << "Read data in ...\n";
     for(auto &line : v)
     {
         for(auto &d : line)
         {
             std::cin >> d;
-            std::cerr << d << " ";
+            // std::cerr << d << " ";
         }
-        std::cerr << "\n";
+        // std::cerr << "\n";
     }
     //std::cout << (double)(v[1][1]) << "\n";
 }

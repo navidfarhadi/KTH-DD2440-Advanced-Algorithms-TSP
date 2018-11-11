@@ -1,9 +1,12 @@
 #include <iostream>
+#include <vector>
+#include <map>
 
 #include "read.hpp"
 #include "mst.hpp"
 #include "odd_degree_subgraph.hpp"
 #include "perfect_matching.hpp"
+#include "euler_hamilton.hpp"
 
 
 int main()
@@ -34,9 +37,25 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    std::cout << "Perfect matching and MST union edges:\n";
-    for (auto &edge : multigraph) {
-        std::cout << edge[0] << " - " << edge[1] << "\n";
+    // std::cout << "Perfect matching and MST union edges:\n";
+    // for (auto &edge : multigraph) {
+    //     std::cout << edge[0] << " - " << edge[1] << "\n";
+    // }
+
+    // Convert graph to a map of vectors
+    std::map<int,std::vector<int>> new_graph;
+    changeToMap(multigraph, new_graph);
+
+    std::cout << "size of new graph: " << new_graph.size() << std::endl;
+
+    for ( const auto &p : new_graph )
+    {
+        std::cout << "Node:" << p.first << std::endl << "Edges to: ";
+        for(const auto &q : p.second)
+        {
+            std::cout << q;
+        }
+        std::cout << std::endl;
     }
 
     return 0;

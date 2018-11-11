@@ -34,4 +34,17 @@ void changeToMap(std::vector<std::array<int,2>> &original_graph, std::map<int,st
     }
 }
 
+bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph)
+{
+    for (const auto &p : graph)
+    {
+        if(p.second.size() % 2 != 0)
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 #endif

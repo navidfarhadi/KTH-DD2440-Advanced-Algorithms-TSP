@@ -48,14 +48,23 @@ int main()
 
     std::cout << "size of new graph: " << new_graph.size() << std::endl;
 
-    for ( const auto &p : new_graph )
+    for (const auto &p : new_graph)
     {
         std::cout << "Node:" << p.first << std::endl << "Edges to: ";
         for(const auto &q : p.second)
         {
-            std::cout << q;
+            std::cout << q << " ";
         }
         std::cout << std::endl;
+    }
+
+    if(hasEulerianCircuit(new_graph))
+    {
+        std::cout << "Graph has Eulerian circuit" << std::endl;
+    }
+    else
+    {
+        std::cout << "Graph does NOT have Eulerian circuit" << std::endl;
     }
 
     return 0;

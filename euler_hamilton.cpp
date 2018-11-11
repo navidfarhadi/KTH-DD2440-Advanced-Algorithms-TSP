@@ -3,6 +3,7 @@
 
 #include "euler_hamilton.hpp"
 #include <iostream>
+#include <algorithm>
 
 void changeToMap(std::vector<std::array<int,2>> &original_graph, std::map<int,std::vector<int>> &new_graph)
 {
@@ -45,6 +46,40 @@ bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph)
     }
 
     return 1;
+}
+
+void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path)
+{
+    std::map<int,std::vector<int>> input_graph_copy(input_graph);
+    std::vector<int> nodeList;
+    int currentNode = 0;
+    int currentNodeNeighbor;
+
+    while(true)
+    {
+        if(input_graph_copy[currentNode].size() == 0 && nodeList.size() == 0)
+        {
+            break;
+        }
+
+        if(input_graph_copy[currentNode].size() == 0)
+        {
+            eulerian_path.push_back(currentNode);
+            currentNode = nodeList.back();
+            nodeList.pop_back();
+        }
+        else
+        {
+            nodeList.push_back(currentNode);
+            currentNodeNeighbor = input_graph_copy[currentNode].back();
+            // input_graph_copy[currentNode].pop_back();
+            input_graph_copy[currentNode].erase(std::remove(input_graph_copy[currentNode].begin(),input_graph_copy[currentNode].end(),currentNodeNeighbor),input_graph_copy[currentNode].end());
+            input_graph_copy[currentNodeNeighbor].erase(std::remove(input_graph_copy[currentNodeNeighbor].begin(),input_graph_copy[currentNodeNeighbor].end(),currentNode),input_graph_copy[currentNodeNeighbor].end());
+            currentNode = currentNodeNeighbor;
+        }
+    }
+
+    eulerian_path.push_back(currentNode);
 }
 
 #endif

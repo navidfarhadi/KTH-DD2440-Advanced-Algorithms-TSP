@@ -37,10 +37,10 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    // std::cout << "Perfect matching and MST union edges:\n";
-    // for (auto &edge : multigraph) {
-    //     std::cout << edge[0] << " - " << edge[1] << "\n";
-    // }
+    std::cout << "Perfect matching and MST union edges:\n";
+    for (auto &edge : multigraph) {
+        std::cout << edge[0] << " - " << edge[1] << "\n";
+    }
 
     // Convert graph to a map of vectors
     std::map<int,std::vector<int>> new_graph;
@@ -61,6 +61,16 @@ int main()
     if(hasEulerianCircuit(new_graph))
     {
         std::cout << "Graph has Eulerian circuit" << std::endl;
+
+        std::vector<int> eulerian_path;
+        findEulerianCircuit(new_graph,eulerian_path);
+
+        std::cout << "Eulerian circuit: ";
+        for(int i = 0; i < eulerian_path.size(); i++)
+        {
+            std::cout << eulerian_path[i] << " ";
+        }
+        std::cout << std::endl;
     }
     else
     {

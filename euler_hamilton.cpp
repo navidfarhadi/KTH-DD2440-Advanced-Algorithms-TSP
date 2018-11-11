@@ -80,6 +80,26 @@ void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vecto
     }
 
     eulerian_path.push_back(currentNode);
+    std::reverse(eulerian_path.begin(),eulerian_path.end());
+}
+
+void findHamiltonianCircuit(std::vector<int> &hamiltonian_circuit,int n)
+{
+    bool isNodeVisited[n];
+    std::fill(isNodeVisited,isNodeVisited+sizeof(isNodeVisited),0);
+
+    for(int i = 0; i < hamiltonian_circuit.size(); i++)
+    {
+        if(isNodeVisited[hamiltonian_circuit[i]])
+        {
+            hamiltonian_circuit[i] = -1;
+        }
+        else
+        {
+            isNodeVisited[hamiltonian_circuit[i]] = true;
+        }
+    }
+    hamiltonian_circuit.erase(std::remove(hamiltonian_circuit.begin(),hamiltonian_circuit.end(),-1),hamiltonian_circuit.end());
 }
 
 #endif

@@ -71,6 +71,16 @@ int main()
             std::cout << eulerian_path[i] << " ";
         }
         std::cout << std::endl;
+
+        std::vector<int> hamiltonian_circuit(eulerian_path);
+        findHamiltonianCircuit(hamiltonian_circuit,numVertices);
+
+        std::cout << "Hamiltonian circuit: ";
+        for(int i = 0; i < hamiltonian_circuit.size(); i++)
+        {
+            std::cout << hamiltonian_circuit[i] << " ";
+        }
+        std::cout << std::endl;
     }
     else
     {

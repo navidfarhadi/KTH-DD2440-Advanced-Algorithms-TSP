@@ -73,9 +73,8 @@ void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vecto
         {
             nodeList.push_back(currentNode);
             currentNodeNeighbor = input_graph_copy[currentNode].back();
-            // input_graph_copy[currentNode].pop_back();
-            input_graph_copy[currentNode].erase(std::remove(input_graph_copy[currentNode].begin(),input_graph_copy[currentNode].end(),currentNodeNeighbor),input_graph_copy[currentNode].end());
-            input_graph_copy[currentNodeNeighbor].erase(std::remove(input_graph_copy[currentNodeNeighbor].begin(),input_graph_copy[currentNodeNeighbor].end(),currentNode),input_graph_copy[currentNodeNeighbor].end());
+            input_graph_copy[currentNode].pop_back();
+            input_graph_copy[currentNodeNeighbor].erase(std::find(input_graph_copy[currentNodeNeighbor].begin(),input_graph_copy[currentNodeNeighbor].end(),currentNode));
             currentNode = currentNodeNeighbor;
         }
     }

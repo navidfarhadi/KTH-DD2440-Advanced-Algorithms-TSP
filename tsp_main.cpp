@@ -62,7 +62,7 @@ int main()
             }
         }
 
-	twoOpt(best_graph, vertices);
+	    twoOpt(best_graph, vertices);
 
         for(int i = 0; i < best_graph.size(); i++)
         {

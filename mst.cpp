@@ -23,6 +23,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
     double dist[size];
     int pred[size];
     bool visited[size] = {false};
+    int counter = 0;
     compare comp;
     // we always start with vertic index 0
     // because it does not make a difference
@@ -52,7 +53,11 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
 
     while (!pq.empty())
     {
-        print_pq(pq);
+        if(counter == size)
+        {
+            break;
+        }
+        //print_pq(pq);
         std::pop_heap(pq.begin(), pq.end(), comp);
         std::pair<int,double> v = pq.back();
         pq.pop_back();
@@ -66,6 +71,7 @@ void MST::getMST(std::vector<std::array<int,2>> &e)
         {
             // mark it as visited
             visited[v.first] = true;
+            counter++;
         }
 
         // std::cerr << "EVALUATING: " << v.first << "\n";

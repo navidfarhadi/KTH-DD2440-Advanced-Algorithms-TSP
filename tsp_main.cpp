@@ -1,4 +1,4 @@
-#include <iostream>
+#include<iostream>
 #include <vector>
 #include <map>
 #include <climits>
@@ -7,7 +7,7 @@
 #include "odd_degree_subgraph.hpp"
 #include "perfect_matching.hpp"
 #include "euler_hamilton.hpp"
-
+#include "2opt.hpp"
 
 int main()
 {
@@ -61,6 +61,8 @@ int main()
                 best_graph = hamiltonian_circuit;
             }
         }
+
+	twoOpt(best_graph, vertices);
 
         for(int i = 0; i < best_graph.size(); i++)
         {

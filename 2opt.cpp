@@ -1,0 +1,24 @@
+#include "euler_hamilton.hpp"
+#include "2opt.hpp"
+#include <iostream>
+#include <algorithm>
+
+void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices)
+{
+    double best_distance = findTotalCost(circuit, vertices);
+    double new_distance;
+    std::vector<int> new_circuit(circuit);
+    for (int i=0; i<circuit.size()-1; i++)
+    {
+	for(int j=i+1; j<circuit.size(); j++)
+	{
+	    new_circuit = circuit;
+	    std::reverse(std::begin(new_circuit)+i, std::begin(new_circuit)+j);
+	    new_distance = findTotalCost(new_circuit, vertices);
+	    if (new_distance < best_distance)
+	    {
+	        circuit = new_circuit;
+	    }
+	}
+    }	
+}

@@ -2,6 +2,7 @@
 #define EULER_HAMILTON_CPP
 
 #include "euler_hamilton.hpp"
+#include "compute_distance.hpp"
 #include <iostream>
 #include <algorithm>
 
@@ -48,11 +49,11 @@ bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph)
     return 1;
 }
 
-void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path)
+void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path, int node)
 {
     std::map<int,std::vector<int>> input_graph_copy(input_graph);
     std::vector<int> nodeList;
-    int currentNode = 0;
+    int currentNode = node;
     int currentNodeNeighbor;
 
     while(true)
@@ -87,6 +88,7 @@ void findHamiltonianCircuit(std::vector<int> &hamiltonian_circuit,int n)
 {
     bool isNodeVisited[n];
     std::fill(isNodeVisited,isNodeVisited+sizeof(isNodeVisited),0);
+    int cost = 0;
 
     for(int i = 0; i < hamiltonian_circuit.size(); i++)
     {
@@ -100,6 +102,21 @@ void findHamiltonianCircuit(std::vector<int> &hamiltonian_circuit,int n)
         }
     }
     hamiltonian_circuit.erase(std::remove(hamiltonian_circuit.begin(),hamiltonian_circuit.end(),-1),hamiltonian_circuit.end());
+}
+
+double findTotalCost(std::vector<int> &hamiltonian_circuit, std::vector<std::array<double,2>> &vertices)
+{
+    double cost = 0;
+    int i;
+
+    for(i = 0; i < hamiltonian_circuit.size() - 1; i++)
+    {
+        cost += compute_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[i+1]]);
+    }
+
+    cost += compute_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[0]]);
+
+    return cost;
 }
 
 #endif

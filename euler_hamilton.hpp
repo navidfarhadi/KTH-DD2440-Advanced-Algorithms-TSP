@@ -8,6 +8,8 @@ void changeToMap(std::vector<std::array<int,2>> &original_graph, std::map<int,st
 // Returns 1 if graph has an Eulerian circuit, 0 if it does not.
 bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph);
 
-void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path);
+void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path, int node);
 
 void findHamiltonianCircuit(std::vector<int> &hamiltonian_circuit, int n);
+
+double findTotalCost(std::vector<int> &hamiltonian_circuit, std::vector<std::array<double,2>> &vertices);

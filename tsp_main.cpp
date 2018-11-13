@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <climits>
 #include "read.hpp"
 #include "mst.hpp"
 #include "odd_degree_subgraph.hpp"
@@ -20,11 +21,6 @@ int main()
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
-    // std::cerr << "MST edges:\n";
-    for (auto &edge : mst_edges) {
-        // std::cerr << edge[0] << " - " << edge[1] << "\n";
-    }
-
     //  Odd degree vertex subgraph
     std::vector<int> oddVertexIndices;
     std::vector<std::array<int,2>> sub_edges;
@@ -40,54 +36,49 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    // std::cerr << "Perfect matching and MST union edges:\n";
-    for (auto &edge : multigraph) {
-        // std::cerr << edge[0] << " - " << edge[1] << "\n";
-    }
-
-    // Convert graph to a map of vectors
     std::map<int,std::vector<int>> new_graph;
     changeToMap(multigraph, new_graph);
 
-    // std::cerr << "size of new graph: " << new_graph.size() << std::endl;
-
-    for (const auto &p : new_graph)
-    {
-        // std::cerr << "Node:" << p.first << std::endl << "Edges to: ";
-        for(const auto &q : p.second)
-        {
-            // std::cerr << q << " ";
-        }
-        // std::cerr << std::endl;
-    }
-
     if(hasEulerianCircuit(new_graph))
     {
-        // std::cerr << "Graph has Eulerian circuit" << std::endl;
-
-        std::vector<int> eulerian_path;
-        findEulerianCircuit(new_graph,eulerian_path);
-
-        // std::cerr << "Eulerian circuit: ";
-        for(int i = 0; i < eulerian_path.size(); i++)
+        // This takes forever... But slightly increases the score.
+        std::vector<int> best_graph;
+        double best_cost = INT_MAX;
+        double totalcost;
+        for(int i = 0; i < numVertices; i++)
         {
-            // std::cerr << eulerian_path[i] << " ";
+            std::vector<int> eulerian_path;
+            findEulerianCircuit(new_graph,eulerian_path, i);
+
+            std::vector<int> hamiltonian_circuit(eulerian_path);
+            findHamiltonianCircuit(hamiltonian_circuit,numVertices);
+
+            totalcost = findTotalCost(hamiltonian_circuit,vertices);
+
+            if(totalcost < best_cost)
+            {
+                best_cost = totalcost;
+                best_graph = hamiltonian_circuit;
+            }
         }
-        // std::cerr << std::endl;
 
-        std::vector<int> hamiltonian_circuit(eulerian_path);
-        findHamiltonianCircuit(hamiltonian_circuit,numVertices);
-
-        // std::cerr << "Hamiltonian circuit: ";
-        for(int i = 0; i < hamiltonian_circuit.size(); i++)
+        for(int i = 0; i < best_graph.size(); i++)
         {
-            std::cout << hamiltonian_circuit[i] << std::endl;
+            std::cout << best_graph[i] << std::endl;
         }
-        // // std::cerr << std::endl;
-    }
-    else
-    {
-        // std::cerr << "Graph does NOT have Eulerian circuit" << std::endl;
+
+        // This algorithm is much faster.
+        // std::vector<int> eulerian_path;
+        // findEulerianCircuit(new_graph,eulerian_path);
+
+        // std::vector<int> hamiltonian_circuit(eulerian_path);
+        // findHamiltonianCircuit(hamiltonian_circuit,numVertices);
+
+        // for(int i = 0; i < hamiltonian_circuit.size(); i++)
+        // {
+        //     std::cout << hamiltonian_circuit[i] << std::endl;
+        // }
+       
     }
 
     return 0;

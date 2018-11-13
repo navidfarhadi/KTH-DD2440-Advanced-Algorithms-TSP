@@ -22,6 +22,7 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
 			if (new_distance < best_distance)
 			{
 				circuit = new_circuit;
+				best_distance = new_distance;
 			}
 
 			if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)

@@ -43,7 +43,6 @@ int main()
 
     if(hasEulerianCircuit(new_graph))
     {
-        // This takes forever... But slightly increases the score.
         std::vector<int> best_graph;
         double best_cost = INT_MAX;
         double totalcost;
@@ -65,24 +64,15 @@ int main()
         }
 
 	    twoOpt(best_graph, vertices, init_clock);
+        if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)
+        {
+            twoOpt(best_graph, vertices, init_clock);
+        }
 
         for(int i = 0; i < best_graph.size(); i++)
         {
             std::cout << best_graph[i] << std::endl;
         }
-
-        // This algorithm is much faster.
-        // std::vector<int> eulerian_path;
-        // findEulerianCircuit(new_graph,eulerian_path);
-
-        // std::vector<int> hamiltonian_circuit(eulerian_path);
-        // findHamiltonianCircuit(hamiltonian_circuit,numVertices);
-
-        // for(int i = 0; i < hamiltonian_circuit.size(); i++)
-        // {
-        //     std::cout << hamiltonian_circuit[i] << std::endl;
-        // }
-       
     }
 
     return 0;

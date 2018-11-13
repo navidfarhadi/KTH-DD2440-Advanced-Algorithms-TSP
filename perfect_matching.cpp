@@ -53,7 +53,6 @@ void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<st
     unsigned int numEdges = graph.size();
 
     PerfectMatching *pm = new PerfectMatching(numVertices, numEdges);
-    // std::cout << "Finding perfect matching, edges:\n";
 
     // Can't use arbitrary vertex indices, as the implementation
     // needs all sequential 0..N (N = numVertices) indices, therefore

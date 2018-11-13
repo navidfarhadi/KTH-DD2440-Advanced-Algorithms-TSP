@@ -3,7 +3,7 @@
 #include <iostream>
 #include <algorithm>
 
-void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices)
+void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices, clock_t &init_clock)
 {
     double best_distance = findTotalCost(circuit, vertices);
     double new_distance;
@@ -24,7 +24,7 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
 				circuit = new_circuit;
 			}
 
-			if(double(clock() - begin) / CLOCKS_PER_SEC > 1.1)
+			if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)
 			{
 				flag = 1;
 				break;

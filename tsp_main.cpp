@@ -10,7 +10,9 @@
 #include "2opt.hpp"
 
 int main()
-{
+{   
+    clock_t init_clock = clock();
+
     int numVertices;
     std::cin >> numVertices;
     std::vector<std::array<double,2>> vertices(numVertices);
@@ -62,7 +64,7 @@ int main()
             }
         }
 
-	    twoOpt(best_graph, vertices);
+	    twoOpt(best_graph, vertices, init_clock);
 
         for(int i = 0; i < best_graph.size(); i++)
         {

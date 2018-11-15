@@ -46,7 +46,7 @@ int main()
         std::vector<int> best_graph;
         double best_cost = INT_MAX;
         double totalcost;
-        for(int i = 0; i < numVertices; i++)
+        for(int i = 0; i < 1; i++)
         {
             std::vector<int> eulerian_path;
             findEulerianCircuit(new_graph,eulerian_path, i);
@@ -64,7 +64,7 @@ int main()
         }
 
 	    twoOpt(best_graph, vertices, init_clock);
-        if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
             twoOpt(best_graph, vertices, init_clock);
         }

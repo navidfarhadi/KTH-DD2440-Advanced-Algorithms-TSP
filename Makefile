@@ -1,7 +1,7 @@
 CC = g++-7
 OUT_FILE = a.out
 
-DIRS := . Blossom5 Blossom5/MinCost
+DIRS := . Blossom5/
 SOURCES := $(foreach dir, $(DIRS), $(wildcard $(dir)/*.cpp))
 
 uname_S=$(shell sh -c 'uname -s 2>/dev/null || echo not')

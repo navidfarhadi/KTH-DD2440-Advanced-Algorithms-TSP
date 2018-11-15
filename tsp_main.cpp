@@ -43,35 +43,19 @@ int main()
 
     if(hasEulerianCircuit(new_graph))
     {
-        std::vector<int> best_graph;
-        double best_cost = INT_MAX;
-        double totalcost;
-        for(int i = 0; i < 1; i++)
-        {
-            std::vector<int> eulerian_path;
-            findEulerianCircuit(new_graph,eulerian_path, i);
+        std::vector<int> eulerian_path;
+        findEulerianCircuit(new_graph,eulerian_path, 0);
+        std::vector<int> hamiltonian_circuit(eulerian_path);
+        findHamiltonianCircuit(hamiltonian_circuit,numVertices);
 
-            std::vector<int> hamiltonian_circuit(eulerian_path);
-            findHamiltonianCircuit(hamiltonian_circuit,numVertices);
-
-            totalcost = findTotalCost(hamiltonian_circuit,vertices);
-
-            if(totalcost < best_cost)
-            {
-                best_cost = totalcost;
-                best_graph = hamiltonian_circuit;
-            }
-        }
-
-	    twoOpt(best_graph, vertices, init_clock);
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
-            twoOpt(best_graph, vertices, init_clock);
+            twoOpt(hamiltonian_circuit, vertices, init_clock);
         }
 
-        for(int i = 0; i < best_graph.size(); i++)
+        for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
-            std::cout << best_graph[i] << std::endl;
+            std::cout << hamiltonian_circuit[i] << std::endl;
         }
     }
 

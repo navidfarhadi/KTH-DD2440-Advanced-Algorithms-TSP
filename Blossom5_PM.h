@@ -11,11 +11,11 @@
 #include <assert.h>
 #include <string.h>
 #include <limits.h>
-#include "block.h"
+#include "Blossom5_block.h"
 
-#include "timer.h"
-#include "PQ.h"
-#include "LCA.h"
+#include "Blossom5_timer.h"
+#include "Blossom5_PQ.h"
+#include "Blossom5_LCA.h"
 
 
 #define LCA_REPAIRS

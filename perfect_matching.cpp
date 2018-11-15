@@ -15,7 +15,7 @@
  * Vladimir Kolmogorov. "Blossom V: A new implementation of a minimum cost perfect matching algorithm."
  * In Mathematical Programming Computation (MPC), July 2009, 1(1):43-67.
  */
-#include "Blossom5/PM.h"
+#include "Blossom5_PM.h"
 
 int suppress_stdout() 
 {

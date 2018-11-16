@@ -6,9 +6,10 @@
 
 void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices, clock_t &init_clock)
 {
-    double best_distance = findTotalCost(circuit, vertices);
-    double new_distance;
-    //std::vector<int> new_circuit(circuit);
+    int n = circuit.size();
+    int k;
+    int l;
+    double delta;
     clock_t begin = clock();
     bool flag = 0;
 
@@ -16,18 +17,23 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
     {
 		for(int j=i+1; j<circuit.size(); j++)
 		{
-			//new_circuit = circuit;
-			std::reverse(std::begin(circuit)+i, std::begin(circuit)+j);
-			new_distance = findTotalCost(circuit, vertices);
-
-			if (new_distance<best_distance)
+			k = i-1;
+			l = j+1;
+			
+			if (i==0)
 			{
-				//circuit = new_circuit;
-				best_distance = new_distance;
+				k=n-1;
 			}
-			else
+			if (j==n-1)
 			{
-				std::reverse(std::begin(circuit)+i, std::begin(circuit)+j);
+				l=0;
+			}
+
+			delta = compute_distance(vertices[circuit[k]], vertices[circuit[j]]) + compute_distance(vertices[circuit[i]], vertices[circuit[l]]) - compute_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_distance(vertices[circuit[j]], vertices[circuit[l]]);
+
+			if (delta<0)
+			{
+				std::reverse(std::begin(circuit)+i, std::begin(circuit)+j+1);
 			}
 
 			if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)

@@ -17,23 +17,6 @@
  */
 #include "Blossom5_PM.h"
 
-int suppress_stdout() 
-{
-    fflush(stdout);
-    int ret = dup(1);
-    int nullfd = open("/dev/null", O_WRONLY);
-    dup2(nullfd, 1);
-    close(nullfd);
-    return ret;
-}
-
-void resume_stdout(int fd) 
-{
-    fflush(stdout);
-    dup2(fd, 1);
-    close(fd);
-}
-
 /**
  *  find_perfect_matching
  *  @param graph Vector of [v1,v2] edge pairs (vertex indices)
@@ -42,12 +25,6 @@ void resume_stdout(int fd)
  *  @param matching The matching to be calculated by reference
  */ 
 void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<std::array<double,2>> &vertices, std::vector<int> &usedVertices, std::vector<std::array<int,2>> &matching) {
-
-    // std::streambuf *original_cout_buffer = std::cout.rdbuf();
-    // std::ofstream null_stream("/dev/null");
-    // std::cout.rdbuf(null_stream.rdbuf());
-
-    int suppress = suppress_stdout();
     
     unsigned int numVertices = usedVertices.size();
     unsigned int numEdges = graph.size();
@@ -72,6 +49,10 @@ void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<st
         pm->AddEdge(vertA, vertB, distance);
     }
 
+    struct PerfectMatching::Options options;
+    options.verbose = false;
+
+    pm->options = options;
     pm->Solve();
     for (unsigned int e = 0; e < numEdges; e++) {
         if (pm->GetSolution(e) == 1) {
@@ -80,7 +61,5 @@ void find_perfect_matching(std::vector<std::array<int,2>> &graph, std::vector<st
     }
 
     delete pm;
-
-    resume_stdout(suppress);
 }
 

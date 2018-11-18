@@ -30,6 +30,7 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
 			}
 
 			delta = compute_distance(vertices[circuit[k]], vertices[circuit[j]]) + compute_distance(vertices[circuit[i]], vertices[circuit[l]]) - compute_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_distance(vertices[circuit[j]], vertices[circuit[l]]);
+			//delta = compute_rounded_distance(vertices[circuit[k]], vertices[circuit[j]]) + compute_rounded_distance(vertices[circuit[i]], vertices[circuit[l]]) - compute_rounded_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_rounded_distance(vertices[circuit[j]], vertices[circuit[l]]);
 
 			if (delta<0)
 			{

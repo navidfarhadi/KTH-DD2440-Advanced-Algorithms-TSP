@@ -1,5 +1,5 @@
 /*
- * This is the hpp file for the implementation of the
+ * This is the cpp file for the implementation of the
  * exact solution of the TSP.
  * This implementation obviously is of a runtime NP
  * and was only for TESTING reasons implemented.

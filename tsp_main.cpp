@@ -8,7 +8,7 @@
 #include "perfect_matching.hpp"
 #include "euler_hamilton.hpp"
 #include "2opt.hpp"
-#include "exact_sol.hpp"
+#include "nearest_neighbor.hpp"
 
 int main()
 {   
@@ -49,24 +49,32 @@ int main()
         std::vector<int> hamiltonian_circuit(eulerian_path);
         findHamiltonianCircuit(hamiltonian_circuit,numVertices);
 
-        /*while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
             twoOpt(hamiltonian_circuit, vertices, init_clock);
-        }*/
+        }
 
-        double our_dist, exact_dist;
+        /*double our_dist, exact_dist;
         exact_dist = compute_best_distance(numVertices, vertices);
-        int our_array[numVertices];
+        int our_array[numVertices];*/
 
         for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
             std::cout << hamiltonian_circuit[i] << std::endl;
-            our_array[i] = hamiltonian_circuit[i];
+            //our_array[i] = hamiltonian_circuit[i];
         }
 
-        our_dist = computeTotalDist(our_array, numVertices, vertices);
+        //our_dist = computeTotalDist(our_array, numVertices, vertices);
 
-        std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
+        //std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
+    }
+
+    std::vector<int> path;
+    compute_nearest_neighbor(path,vertices);
+    std::cout << "Nearest Neighbor Path" << std::endl;
+    for(int i = 0; i < path.size(); i++)
+    {
+        std::cout << path[i] << std::endl;
     }
 
     return 0;

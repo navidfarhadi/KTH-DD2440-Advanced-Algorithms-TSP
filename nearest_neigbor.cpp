@@ -17,7 +17,7 @@ void compute_nearest_neighbor(std::vector<int> &path, std::vector<std::array<dou
     int counter = 1;
     visited[cur] = true;
     path.push_back(cur);
-    while(true)
+    while(counter<size)
     {
         double dist = __DBL_MAX__;
         int index = -1;
@@ -37,9 +37,5 @@ void compute_nearest_neighbor(std::vector<int> &path, std::vector<std::array<dou
         counter++;
         visited[cur] = true;
         path.push_back(cur);
-        if(counter == size)
-        {
-            break;
-        }
     }
 }

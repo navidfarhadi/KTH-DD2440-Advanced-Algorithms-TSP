@@ -9,6 +9,7 @@
 #include "euler_hamilton.hpp"
 #include "2opt.hpp"
 #include "nearest_neighbor.hpp"
+#include "exact_sol.hpp"
 
 int main()
 {   
@@ -18,6 +19,8 @@ int main()
     std::cin >> numVertices;
     std::vector<std::array<double,2>> vertices(numVertices);
     read_in_stdin(vertices);
+    std::vector<int> exactSol(numVertices);
+    read_in_sol(exactSol);
 
     //  Minimum Spanning Tree
     std::vector<std::array<int,2>> mst_edges;
@@ -54,28 +57,36 @@ int main()
             twoOpt(hamiltonian_circuit, vertices, init_clock);
         }
 
-        /*double our_dist, exact_dist;
-        exact_dist = compute_best_distance(numVertices, vertices);
-        int our_array[numVertices];*/
+
+        double our_dist, exact_dist;
+        int exact_array[numVertices];
+        for(int i = 0; i < numVertices; i++)
+        {
+            exact_array[i] = exactSol[i];
+        }
+
+        exact_dist = computeTotalDist(exact_array,numVertices,vertices);
+        int our_array[numVertices];
+
 
         for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
             std::cout << hamiltonian_circuit[i] << std::endl;
-            //our_array[i] = hamiltonian_circuit[i];
+            our_array[i] = hamiltonian_circuit[i];
         }
 
-        //our_dist = computeTotalDist(our_array, numVertices, vertices);
+        our_dist = computeTotalDist(our_array, numVertices, vertices);
 
-        //std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
+        std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
     }
 
-    std::vector<int> path;
+    /*std::vector<int> path;
     compute_nearest_neighbor(path,vertices);
     std::cout << "Nearest Neighbor Path" << std::endl;
     for(int i = 0; i < path.size(); i++)
     {
         std::cout << path[i] << std::endl;
-    }
+    }*/
 
     return 0;
 }

@@ -7,3 +7,5 @@
  */
 
 void read_in_stdin(std::vector<std::array<double,2>> &v);
+
+void read_in_sol(std::vector<int> &v);

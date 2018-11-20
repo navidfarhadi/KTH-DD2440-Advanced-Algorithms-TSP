@@ -22,3 +22,13 @@ void read_in_stdin(std::vector<std::array<double,2>> &v)
     }
     //std::cout << (double)(v[1][1]) << "\n";
 }
+
+void read_in_sol(std::vector<int> &v)
+{
+    for(auto &i : v)
+        {
+            std::cin >> i;
+            i = i - 1;
+            // std::cerr << d << " ";
+        }
+}

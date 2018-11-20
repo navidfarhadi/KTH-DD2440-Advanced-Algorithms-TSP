@@ -8,7 +8,6 @@
 #include "perfect_matching.hpp"
 #include "euler_hamilton.hpp"
 #include "2opt.hpp"
-#include "exact_sol.hpp"
 
 
 int main()
@@ -19,8 +18,8 @@ int main()
     std::cin >> numVertices;
     std::vector<std::array<double,2>> vertices(numVertices);
     read_in_stdin(vertices);
-    std::vector<int> exactSol(numVertices);
-    read_in_sol(exactSol);
+    //std::vector<int> exactSol(numVertices);
+    //read_in_sol(exactSol);
 
     //  Minimum Spanning Tree
     std::vector<std::array<int,2>> mst_edges;

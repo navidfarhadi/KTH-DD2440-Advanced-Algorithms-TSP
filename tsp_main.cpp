@@ -68,7 +68,8 @@ int main()
 
         //std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
     }
-
+    
+    /*
     std::vector<int> path;
     compute_nearest_neighbor(path,vertices);
     std::cout << "Nearest Neighbor Path" << std::endl;
@@ -76,6 +77,7 @@ int main()
     {
         std::cout << path[i] << std::endl;
     }
+    */
 
     return 0;
 }

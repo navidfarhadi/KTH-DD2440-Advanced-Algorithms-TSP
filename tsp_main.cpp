@@ -8,7 +8,6 @@
 #include "perfect_matching.hpp"
 #include "euler_hamilton.hpp"
 #include "2opt.hpp"
-#include "nearest_neighbor.hpp"
 #include "exact_sol.hpp"
 
 
@@ -58,7 +57,7 @@ int main()
             twoOpt(hamiltonian_circuit, vertices, init_clock);
         }
 
-
+        /*
         double our_dist, exact_dist;
         int exact_array[numVertices];
         for(int i = 0; i < numVertices; i++)
@@ -68,17 +67,18 @@ int main()
 
         exact_dist = computeTotalDist(exact_array,numVertices,vertices);
         int our_array[numVertices];
-
+        */
 
         for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
             std::cout << hamiltonian_circuit[i] << std::endl;
-            our_array[i] = hamiltonian_circuit[i];
+            //our_array[i] = hamiltonian_circuit[i];
         }
-
+        /*
         our_dist = computeTotalDist(our_array, numVertices, vertices);
 
         std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
+        */
     }
     
 

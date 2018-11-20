@@ -11,6 +11,7 @@
 #include "nearest_neighbor.hpp"
 #include "exact_sol.hpp"
 
+
 int main()
 {   
     clock_t init_clock = clock();
@@ -79,14 +80,7 @@ int main()
 
         std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
     }
-
-    /*std::vector<int> path;
-    compute_nearest_neighbor(path,vertices);
-    std::cout << "Nearest Neighbor Path" << std::endl;
-    for(int i = 0; i < path.size(); i++)
-    {
-        std::cout << path[i] << std::endl;
-    }*/
+    
 
     return 0;
 }

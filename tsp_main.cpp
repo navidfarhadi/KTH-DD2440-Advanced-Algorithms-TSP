@@ -53,7 +53,7 @@ int main()
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
-            twoOpt(hamiltonian_circuit, vertices, init_clock);
+            threeOpt(hamiltonian_circuit, vertices, init_clock);
         }
 
         for(int i = 0; i < hamiltonian_circuit.size(); i++)

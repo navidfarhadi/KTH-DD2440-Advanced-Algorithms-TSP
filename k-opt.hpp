@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <iostream>
+#include <array>
 
 void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices, clock_t &init_clock);
 

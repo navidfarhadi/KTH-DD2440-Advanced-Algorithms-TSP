@@ -4,7 +4,7 @@
 #include "k-opt.hpp"
 #include "nearest_neighbor.hpp"
 
-int main_a()
+int main()
 {   
     clock_t init_clock = clock();
 

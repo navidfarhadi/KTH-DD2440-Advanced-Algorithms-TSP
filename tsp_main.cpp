@@ -56,30 +56,11 @@ int main()
             twoOpt(hamiltonian_circuit, vertices, init_clock);
         }
 
-        /*
-        double our_dist, exact_dist;
-        int exact_array[numVertices];
-        for(int i = 0; i < numVertices; i++)
-        {
-            exact_array[i] = exactSol[i];
-        }
-
-        exact_dist = computeTotalDist(exact_array,numVertices,vertices);
-        int our_array[numVertices];
-        */
-
         for(int i = 0; i < hamiltonian_circuit.size(); i++)
         {
             std::cout << hamiltonian_circuit[i] << std::endl;
-            //our_array[i] = hamiltonian_circuit[i];
         }
-        /*
-        our_dist = computeTotalDist(our_array, numVertices, vertices);
-
-        std::cout << "ratio: " << (our_dist/exact_dist) << "\n";
-        */
     }
-    
 
     return 0;
 }

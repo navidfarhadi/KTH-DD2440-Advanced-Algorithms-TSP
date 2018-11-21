@@ -1,8 +1,4 @@
 
-
-#ifndef ASKHAKJSNTJAKSNBBAVASRA
-#define ASKHAKJSNTJAKSNBBAVASRA
-
 #ifdef _MSC_VER
 #pragma warning(disable: 4311)
 #pragma warning(disable: 4312)
@@ -13,9 +9,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#ifndef GNAKDLATHJSTHAJSRNAKSJDA
-#define GNAKDLATHJSTHAJSRNAKSJDA
 
 class LCATree
 {
@@ -241,9 +234,6 @@ inline void LCATree::GetPenultimateNodes(PreorderId& _i, PreorderId& _j)
 	if (swap == 0) { _i = i; _j = j; }
 	else           { _j = i; _i = j; }
 }
-
-#endif
-
 
 #ifndef HFKSJHFKJHARBABDAKFAF
 #define HFKSJHFKJHARBABDAKFAF
@@ -1235,30 +1225,12 @@ public:
 
 	PerfectMatching(int nodeNum, int edgeNumMax);
 	~PerfectMatching();
-
-	
 	EdgeId AddEdge(NodeId i, NodeId j, REAL cost);
-
-	
-	
-	
 	void Solve(bool finish=true);
-
-	
-	
 	int GetSolution(EdgeId e); 
 	NodeId GetMatch(NodeId i); 
-
-	
-	
-	
-	
 	void GetDualSolution(int* blossom_parents, REAL* twice_y);
 	int GetBlossomNum();
-
-	
-	
-	
 	
 	void StartUpdate();
 	void FinishUpdate();
@@ -1267,11 +1239,6 @@ public:
 	REAL GetTwiceSum(NodeId i); 
 	EdgeId AddNewEdge(NodeId i, NodeId j, REAL cost, bool do_not_add_if_positive_slack=true); 
 	void UpdateCost(EdgeId e, REAL delta_cost);
-
-
-	
-	
-	
 	
 	struct Options
 	{
@@ -1522,10 +1489,6 @@ struct PerfectMatching::TreeEdge : PQPointers
 	TreeEdge*	next[2];
 };
 
-
-
-
-
 #define GET_PENULTIMATE_BLOSSOM(j)\
 	{\
 		Node* jtmp1 = j;\
@@ -1562,9 +1525,6 @@ struct PerfectMatching::TreeEdge : PQPointers
 			}\
 		}\
 	}
-
-
-
 
 struct PerfectMatching::EdgeIterator
 {
@@ -1697,7 +1657,3 @@ struct PerfectMatching::TreeEdgeIterator
 			i_PARENT->first_tree_child = (i)->tree_sibling_next;\
 		}\
 	}
-
-
-#endif
-

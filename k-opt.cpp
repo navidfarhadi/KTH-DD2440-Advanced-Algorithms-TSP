@@ -49,6 +49,60 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
     }
 }
 
+void twoHOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices, clock_t &init_clock)
+{
+    int n = circuit.size();
+    int k, m;
+
+    int l;
+    double delta;
+    clock_t begin = clock();
+    bool flag = 0;
+
+    for (int i=0; i<circuit.size()-1; i++)
+    {
+		for(int j=i+1; j<circuit.size(); j++)
+		{
+			k = i - 1;
+			m = i - 2;
+			l = j + 1;
+			
+			if (i == 0)
+			{
+				k = n - 1;
+				m = n - 2;
+			} else if (i == 1) {
+				k = 0;
+				m = n - 1;
+			}
+
+			if (j==n-1)
+			{
+				l=0;
+			}
+
+			delta = compute_rounded_distance(vertices[circuit[m]], vertices[circuit[i]]) + compute_rounded_distance(vertices[circuit[j]], vertices[circuit[k]]) + compute_rounded_distance(vertices[circuit[k]], vertices[circuit[l]]) - compute_rounded_distance(vertices[circuit[m]], vertices[circuit[k]]) - compute_rounded_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_rounded_distance(vertices[circuit[j]], vertices[circuit[l]]);
+
+			if (delta<0)
+			{
+				int vert = circuit[k];
+				circuit.erase(circuit.begin() + k);
+				circuit.insert(circuit.begin() + l, vert);	
+			}
+
+			if(double(clock() - init_clock) / CLOCKS_PER_SEC > 1.99)
+			{
+				flag = 1;
+				break;
+			}
+		}
+		if(flag)
+		{
+			break;
+		}
+    }
+}
+
 void threeOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertices, clock_t &init_clock)
 {
 

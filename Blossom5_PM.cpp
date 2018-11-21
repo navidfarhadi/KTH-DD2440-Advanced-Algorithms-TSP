@@ -13,7 +13,6 @@ struct Node
 	int lca_preorder;
 };
 
-
 int CheckPerfectMatchingOptimality(int node_num, int edge_num, int* edges, int* weights, PerfectMatching* pm, PerfectMatching::REAL threshold)
 {
 	int _i, _j, _e;
@@ -128,11 +127,6 @@ int CheckPerfectMatchingOptimality(int node_num, int edge_num, int* edges, int* 
 
 	if (y_blossom_min < -threshold || slack_min < -threshold || active_slack_max > threshold)
 	{
-		printf("ERROR in CheckPerfectMatchingOptimality():\n");
-		if ( ((PerfectMatching::REAL)1 / 2) == 0 )
-			printf("\ty_blossom_min=%d\n\tslack_min=%d\n\tactive_slack_max=%d\n", (int)y_blossom_min, (int)slack_min, (int)active_slack_max);
-		else
-			printf("\ty_blossom_min=%.15f\n\tslack_min=%.15f\n\tactive_slack_max=%.15f\n", (double)y_blossom_min, (double)slack_min, (double)active_slack_max);
 		return 1;
 	}
 
@@ -391,11 +385,6 @@ template <typename FlowType, typename CostType>
 }
 
 #endif
-
-
-
-
-
 #define FLOW_INFTY ((int)0x00fffffff)
 
 template <typename CostType> 
@@ -1846,7 +1835,6 @@ void PerfectMatching::GetRealEndpoints(Edge* a, Node*& tail, Node*& head)
 
 void PerfectMatching::ReallocateEdges()
 {
-	printf("Warning: reallocating edges. Increasing edge_num_max in the constructor may improve memory efficiency!\n");
 	edge_num_max = edge_num_max*3/2 + 16;
 	char* edges_orig_old = edges_orig;
 	Edge* edges_old = edges;
@@ -2423,14 +2411,10 @@ void PerfectMatching::Solve(bool finish)
 	{
 		if (options.dual_greedy_update_option == 2)
 		{
-			printf("Fixed eps approach can only be used with floating point REAL!\n");
-			printf("Change REAL to double in PerfectMatching.h and recompile\n");
 			exit(1);
 		}
 		if (options.dual_LP_threshold > 0)
 		{
-			printf("LP approach can only be used with floating point REAL!\n");
-			printf("Change REAL to double in PerfectMatching.h and recompile\n");
 			exit(1);
 		}
 	}

@@ -37,8 +37,6 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    // std::cerr << multigraph.size()<< std::endl;
-
     std::unordered_map<int,std::vector<int>> new_graph;
     changeToMap(multigraph, new_graph);
 
@@ -52,7 +50,7 @@ int main()
         double best_cost = __DBL_MAX__;
         std::vector<int> best_path;
 
-        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.5)
         {
             twoOpt(path, vertices, init_clock);
             cost = findTotalCost(path,vertices);
@@ -77,14 +75,41 @@ int main()
                 best_cost = cost;
                 best_path = path;
             }
+        }
 
-            // std::random_shuffle(path.begin(), path.end());
-            // cost = findTotalCost(path,vertices);
-            // if(cost < best_cost)
-            // {
-            //     best_cost = cost;
-            //     best_path = path;
-            // }
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
+        {
+            std::random_shuffle(path.begin(), path.end());
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
+            twoOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
+            twoHOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
+            threeOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
         }
 
         for(int i = 0; i < best_path.size(); i++)

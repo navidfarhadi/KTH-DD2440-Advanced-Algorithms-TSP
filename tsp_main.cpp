@@ -1,6 +1,7 @@
 #include<iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <climits>
 #include "read.hpp"
 #include "mst.hpp"
@@ -36,7 +37,9 @@ int main()
     multigraph.insert(multigraph.end(), mst_edges.begin(), mst_edges.end());
     multigraph.insert(multigraph.end(), matching_edges.begin(), matching_edges.end());
 
-    std::map<int,std::vector<int>> new_graph;
+    // std::cerr << multigraph.size()<< std::endl;
+
+    std::unordered_map<int,std::vector<int>> new_graph;
     changeToMap(multigraph, new_graph);
 
     if(hasEulerianCircuit(new_graph))
@@ -45,22 +48,59 @@ int main()
         findEulerianCircuit(new_graph,path, 0);
         findHamiltonianCircuit(path,numVertices);
 
-        double remaining = 2 - (double(clock() - init_clock) / CLOCKS_PER_SEC);
-        double twoOptTime = remaining / 4;
+        double cost;
+        double best_cost = __DBL_MAX__;
+        std::vector<int> best_path;
 
-        while(double(clock() - init_clock) / CLOCKS_PER_SEC < twoOptTime)
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.0)
         {
             twoOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
+            threeOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
         }
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
+            twoOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
             threeOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+
+            std::random_shuffle(path.begin(), path.end());
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
         }
 
-        for(int i = 0; i < path.size(); i++)
+        for(int i = 0; i < best_path.size(); i++)
         {
-            std::cout << path[i] << std::endl;
+            std::cout << best_path[i] << std::endl;
         }
     }
 

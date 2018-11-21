@@ -4,9 +4,10 @@
 #include "euler_hamilton.hpp"
 #include "compute_distance.hpp"
 #include <iostream>
+#include <unordered_map>
 #include <algorithm>
 
-void changeToMap(std::vector<std::array<int,2>> &original_graph, std::map<int,std::vector<int>> &new_graph)
+void changeToMap(std::vector<std::array<int,2>> &original_graph, std::unordered_map<int,std::vector<int>> &new_graph)
 {
     for(std::array<int,2> &edge : original_graph)
     {
@@ -36,7 +37,7 @@ void changeToMap(std::vector<std::array<int,2>> &original_graph, std::map<int,st
     }
 }
 
-bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph)
+bool hasEulerianCircuit(std::unordered_map<int,std::vector<int>> &graph)
 {
     for (const auto &p : graph)
     {
@@ -49,9 +50,9 @@ bool hasEulerianCircuit(std::map<int,std::vector<int>> &graph)
     return 1;
 }
 
-void findEulerianCircuit(std::map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path, int node)
+void findEulerianCircuit(std::unordered_map<int,std::vector<int>> &input_graph, std::vector<int> &eulerian_path, int node)
 {
-    std::map<int,std::vector<int>> input_graph_copy(input_graph);
+    std::unordered_map<int,std::vector<int>> input_graph_copy(input_graph);
     std::vector<int> nodeList;
     int currentNode = node;
     int currentNodeNeighbor;
@@ -110,10 +111,10 @@ double findTotalCost(std::vector<int> &hamiltonian_circuit, std::vector<std::arr
 
     for(i = 0; i < hamiltonian_circuit.size() - 1; i++)
     {
-        cost += compute_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[i+1]]);
+        cost += compute_rounded_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[i+1]]);
     }
 
-    cost += compute_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[0]]);
+    cost += compute_rounded_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[0]]);
 
     return cost;
 }

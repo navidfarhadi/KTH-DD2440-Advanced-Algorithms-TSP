@@ -68,13 +68,13 @@ int main()
                 best_path = path;
             }
 
-            threeOpt(path, vertices, init_clock);
-            cost = findTotalCost(path,vertices);
-            if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }
+            // threeOpt(path, vertices, init_clock);
+            // cost = findTotalCost(path,vertices);
+            // if(cost < best_cost)
+            // {
+            //     best_cost = cost;
+            //     best_path = path;
+            // }
         }
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
@@ -103,13 +103,13 @@ int main()
                 best_path = path;
             }
 
-            threeOpt(path, vertices, init_clock);
-            cost = findTotalCost(path,vertices);
-            if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }
+            // threeOpt(path, vertices, init_clock);
+            // cost = findTotalCost(path,vertices);
+            // if(cost < best_cost)
+            // {
+            //     best_cost = cost;
+            //     best_path = path;
+            // }
         }
 
         for(int i = 0; i < best_path.size(); i++)

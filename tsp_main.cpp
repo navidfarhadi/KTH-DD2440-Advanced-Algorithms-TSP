@@ -46,7 +46,7 @@ int main()
         findHamiltonianCircuit(path,numVertices);
 
         double remaining = 2 - (double(clock() - init_clock) / CLOCKS_PER_SEC);
-        double twoOptTime = remaining / 6;
+        double twoOptTime = remaining / 4;
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < twoOptTime)
         {

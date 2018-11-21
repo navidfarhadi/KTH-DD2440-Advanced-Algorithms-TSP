@@ -51,6 +51,14 @@ int main()
         std::vector<int> hamiltonian_circuit(eulerian_path);
         findHamiltonianCircuit(hamiltonian_circuit,numVertices);
 
+        double remaining = 2 - (double(clock() - init_clock) / CLOCKS_PER_SEC);
+        double twoOptTime = remaining / 6;
+
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < twoOptTime)
+        {
+            twoOpt(hamiltonian_circuit, vertices, init_clock);
+        }
+
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
             threeOpt(hamiltonian_circuit, vertices, init_clock);

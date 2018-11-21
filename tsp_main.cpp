@@ -50,7 +50,7 @@ int main()
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < twoOptTime)
         {
-            twoOpt(hamiltonian_circuit, vertices, init_clock);
+            twoOpt(path, vertices, init_clock);
         }
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)

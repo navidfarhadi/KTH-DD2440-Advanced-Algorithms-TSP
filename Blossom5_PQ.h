@@ -1,8 +1,6 @@
 #ifndef HFKSJHFKJHARBABDAKFAF
 #define HFKSJHFKJHARBABDAKFAF
 
-// exactly one flag must be defined
-//#define PQ_MULTIPASS
 #define PQ_INTERLEAVED_MULTIPASS
 
 #include <string.h>
@@ -22,7 +20,7 @@ public:
 				Item*	leftPQ;
 				Item*	rightPQ;
 			};
-			REAL	y_saved; // used in repairs
+			REAL	y_saved;
 		};
 	};
 	static void* AllocateBuf();
@@ -31,8 +29,6 @@ public:
 	static void ResetItem(Item* i);
 	static bool isReset(Item* i);
 
-	//////////////////////////////////////////////////////////
-
 	void Reset();
 	void Add(Item* i);
 #define Remove(i, buf) _Remove(i)
@@ -40,20 +36,14 @@ public:
 	void Decrease(Item* i_old, Item* i_new, void* buf);
 	Item* GetMin();
 
-	//////////////////////////////////////////////////////////
-
 	void Update(REAL delta);
 	void Merge(PriorityQueue<REAL>& dest);
 
-	// traversing items in the order they are stored (irrespective of slack).
-	// The caller must go through all items, no other member functions can be called during the scan.
 	Item* GetAndResetFirst();
 	Item* GetAndResetNext();
 
 	Item* GetFirst();
 	Item* GetNext(Item* i);
-
-	//////////////////////////////////////////////////////////
 
 private:
 	struct Buf
@@ -62,10 +52,6 @@ private:
 	Item*	rootPQ;
 	void RemoveRoot();
 };
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
 template <typename REAL> inline void* PriorityQueue<REAL>::AllocateBuf()
 {
@@ -86,32 +72,10 @@ template <typename REAL> inline bool PriorityQueue<REAL>::isReset(Item* i)
 	return (i->parentPQ == NULL);
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
 template <typename REAL> inline void PriorityQueue<REAL>::Reset() 
 { 
 	rootPQ = NULL; 
 }
-
-/*
-template <typename REAL> inline void PriorityQueue<REAL>::RemoveRoot()
-{
-	Item* r = rootPQ;
-	PriorityQueue<REAL> pq;
-	pq.rootPQ = rootPQ;
-	rootPQ = NULL;
-	Item* i;
-	for (i=pq.GetAndResetFirst(); i; i=pq.GetAndResetNext())
-	{
-		if (i != r) Add(i);
-	}
-	r->parentPQ = NULL;
-}
-*/
-
-// sets i = merge(i, j). Ignores parentPQ and rightPQ for i and j.
 #define MERGE_PQ(i, j)\
 	{\
 		if (i->slack <= j->slack)\
@@ -265,10 +229,6 @@ template <typename REAL> inline typename PriorityQueue<REAL>::Item* PriorityQueu
 	return rootPQ;
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
 
 
 template <typename REAL> inline void PriorityQueue<REAL>::Merge(PriorityQueue<REAL>& dest)
@@ -319,11 +279,6 @@ template <typename REAL> inline void PriorityQueue<REAL>::Update(REAL delta)
 		}
 	}
 }
-
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
 template <typename REAL> inline typename PriorityQueue<REAL>::Item* PriorityQueue<REAL>::GetAndResetFirst()
 {

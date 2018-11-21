@@ -6,19 +6,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#define LCA_BLOCKS
 
 class LCATree
 {
 public:
-	typedef void* NodeId; // can be any type, e.g. int. (The code checks NodeId's only for equalities.)
+	typedef void* NodeId; 
 	typedef int PreorderId;
 
 	LCATree(int node_num_max);
 	~LCATree();
 
 	PreorderId Add(NodeId i, NodeId i_parent);
-	PreorderId AddRoot(NodeId i); // completes tree construction
+	PreorderId AddRoot(NodeId i); 
 
 	PreorderId GetLCA(PreorderId i, PreorderId j);
 	void GetPenultimateNodes(PreorderId& i, PreorderId& j);
@@ -34,7 +33,7 @@ private:
 
 	int* parents;
 
-	int _GetLCA(int i, int j); // same as GetLCA, but assumes that i<j
+	int _GetLCA(int i, int j); 
 	int GetLCADirect(int i, int j);
 };
 
@@ -134,7 +133,6 @@ inline LCATree::PreorderId LCATree::AddRoot(NodeId i)
 	delete [] buf1;
 	buf1 = NULL;
 
-	// initialize array
 	int b, k = 1, block_num = (n-1)/K+1;
 	if (block_num < 3) return n-1;
 	int d = (block_num-1)/4;
@@ -183,14 +181,12 @@ inline int LCATree::_GetLCA(int i, int j)
 	i = GetLCADirect(i, i_last);
 	j = GetLCADirect(j_first, j);
 	if (i < j) i = j;
-	// set j = LCA(i_last, j_first)
 	if (j_first - i_last == 1) j = parents[i_last];
 	else
 	{
 		int k = 1, d = (bj-bi)/4;
 		while (d) { k ++; d >>= 1; }
 		int diff = 1<<k;
-		//assert(bi+diff <= bj && bi+diff>bj-diff);
 		j = (array[k][bi] > array[k][bj-diff]) ? array[k][bi] : array[k][bj-diff];
 	}
 	return (i > j) ? i : j;
@@ -202,15 +198,11 @@ inline int LCATree::_GetLCA(int i, int j)
 	int k = 0, d = (j-i)/2;
 	while (d) { k ++; d >>= 1; }
 	int diff = 1<<k;
-	//assert(i+diff <= j && i+diff>j-diff);
 	return (array[k][i] > array[k][j-diff]) ? array[k][i] : array[k][j-diff];
 
 #endif
 }
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
 
 inline LCATree::PreorderId LCATree::GetLCA(PreorderId i, PreorderId j)
 {

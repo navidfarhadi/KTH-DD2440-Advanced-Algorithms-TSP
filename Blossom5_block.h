@@ -6,18 +6,9 @@
 template <class Type> class Block
 {
 public:
-	/* Constructor. Arguments are the block size and
-	   (optionally) the pointer to the function which
-	   will be called if allocation failed; the message
-	   passed to this function is "Not enough memory!" */
 	Block(int size, void (*err_function)(const char *) = NULL) { first = last = NULL; block_size = size; error_function = err_function; }
-
-	/* Destructor. Deallocates all items added so far */
 	~Block() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
 
-	/* Allocates 'num' consecutive items; returns pointer
-	   to the first item. 'num' cannot be greater than the
-	   block size since items must fit in one block */
 	Type *New(int num = 1)
 	{
 		Type *t;
@@ -42,8 +33,6 @@ public:
 		last -> current += num;
 		return t;
 	}
-
-	/* Returns the first item (or NULL, if no items were added) */
 	Type *ScanFirst()
 	{
 		for (scan_current_block=first; scan_current_block; scan_current_block = scan_current_block->next)
@@ -54,9 +43,6 @@ public:
 		return NULL;
 	}
 
-	/* Returns the next item (or NULL, if all items have been read)
-	   Can be called only if previous ScanFirst() or ScanNext()
-	   call returned not NULL. */
 	Type *ScanNext()
 	{
 		while (scan_current_data >= scan_current_block -> current)
@@ -68,7 +54,6 @@ public:
 		return scan_current_data ++;
 	}
 
-	/* Marks all elements as empty */
 	void Reset()
 	{
 		block *b;
@@ -81,7 +66,6 @@ public:
 		last = first;
 	}
 
-/***********************************************************************/
 
 private:
 
@@ -102,23 +86,13 @@ private:
 	void	(*error_function)(const char *);
 };
 
-/***********************************************************************/
-/***********************************************************************/
-/***********************************************************************/
-
 template <class Type> class DBlock
 {
 public:
-	/* Constructor. Arguments are the block size and
-	   (optionally) the pointer to the function which
-	   will be called if allocation failed; the message
-	   passed to this function is "Not enough memory!" */
 	DBlock(int size, void (*err_function)(const char *) = NULL) { first = NULL; first_free = NULL; block_size = size; error_function = err_function; }
 
-	/* Destructor. Deallocates all items added so far */
 	~DBlock() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
 
-	/* Allocates one item */
 	Type *New()
 	{
 		block_item *item;
@@ -139,15 +113,12 @@ public:
 		first_free = item -> next_free;
 		return (Type *) item;
 	}
-
-	/* Deletes an item allocated previously */
 	void Delete(Type *t)
 	{
 		((block_item *) t) -> next_free = first_free;
 		first_free = (block_item *) t;
 	}
 
-/***********************************************************************/
 
 private:
 

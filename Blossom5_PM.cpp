@@ -413,269 +413,79 @@ else{(t-1)->root->tree_sibling_next=r;r->tree_sibling_prev=(t-1)->root;}
 r->tree=t;t->root=r;t->eps=0;t->first[0]=t->first[1]=NULL;t->pq_current=NULL;t->pq00.Reset();t->pq0.Reset();t->pq_blossoms.Reset();t++;}}
 assert(t==trees+tree_num);if(t==trees)nodes[node_num].tree_sibling_next=NULL;else(t-1)->root->tree_sibling_next=NULL;}
 
-PerfectMatching::PerfectMatching(int nodeNum, int edgeNumMax)
-	: node_num(nodeNum),
-	  edge_num(0),
-	  edge_num_max(edgeNumMax),
-	  trees(NULL),
-	  tree_num_max(0),
-	  removed_first(NULL),
-	  blossom_num(0),
-	  removed_num(0),
-	  first_solve(true)
-{
-	if (node_num & 1) { printf("# of nodes is odd: perfect matching cannot exist\n"); exit(1); }
-	nodes = (Node*) malloc((node_num+1)*sizeof(Node));
-	edges_orig = (char*) malloc(edge_num_max*sizeof(Edge)+1);
-	edges = (Edge*) ( ( ((POINTER_TYPE)edges_orig) & 1 ) ? (edges_orig + 1) : edges_orig );
-	memset(nodes, 0, (node_num+1)*sizeof(Node));
-
-	blossoms   = new DBlock<Node>(256);
-	tree_edges = new DBlock<TreeEdge>(256);
-	expand_tmp_list = new Block<ExpandTmpItem>(256);
-	pq_buf = PriorityQueue<REAL>::AllocateBuf();
-}
-
-
-void PerfectMatching::Save(char* filename, int format)
-{
-	if (!first_solve) { printf("Save() cannot be called after Solve()!\n"); exit(1); }
-	int e;
-	FILE* fp = fopen(filename, "w");
-	if (!fp) { printf("Can't open %s\n", filename); exit(1); }
-	if (format == 0)
-	{
-		fprintf(fp, "p edge %d %d\n", node_num, edge_num);
-		for (e=0; e<edge_num; e++)
-		{
-			fprintf(fp, "e %d %d %d\n", 1+(int)(edges[e].head0[1]-nodes), 1+(int)(edges[e].head0[0]-nodes), (int)edges[e].slack/COST_FACTOR);
-		}
-	}
-	else
-	{
-		fprintf(fp, "%d %d\n", node_num, edge_num);
-		for (e=0; e<edge_num; e++)
-		{
-			fprintf(fp, "%d %d %d\n", (int)(edges[e].head0[1]-nodes), (int)(edges[e].head0[0]-nodes), (int)edges[e].slack/COST_FACTOR);
-		}
-	}
-	fclose(fp);
-}
+PerfectMatching::PerfectMatching(int nodeNum,int edgeNumMax):node_num(nodeNum),edge_num(0),edge_num_max(edgeNumMax),trees(NULL),tree_num_max(0),removed_first(NULL),blossom_num(0),removed_num(0),first_solve(true)
+{if(node_num&1){printf("# of nodes is odd: perfect matching cannot exist\n");exit(1);}
+nodes=(Node*)malloc((node_num+1)*sizeof(Node));edges_orig=(char*)malloc(edge_num_max*sizeof(Edge)+1);edges=(Edge*)((((POINTER_TYPE)edges_orig)&1)?(edges_orig+1):edges_orig);memset(nodes,0,(node_num+1)*sizeof(Node));blossoms=new DBlock<Node>(256);tree_edges=new DBlock<TreeEdge>(256);expand_tmp_list=new Block<ExpandTmpItem>(256);pq_buf=PriorityQueue<REAL>::AllocateBuf();}
+void PerfectMatching::Save(char*filename,int format)
+{if(!first_solve){printf("Save() cannot be called after Solve()!\n");exit(1);}
+int e;FILE*fp=fopen(filename,"w");if(!fp){printf("Can't open %s\n",filename);exit(1);}
+if(format==0)
+{fprintf(fp,"p edge %d %d\n",node_num,edge_num);for(e=0;e<edge_num;e++)
+{fprintf(fp,"e %d %d %d\n",1+(int)(edges[e].head0[1]-nodes),1+(int)(edges[e].head0[0]-nodes),(int)edges[e].slack/COST_FACTOR);}}
+else
+{fprintf(fp,"%d %d\n",node_num,edge_num);for(e=0;e<edge_num;e++)
+{fprintf(fp,"%d %d %d\n",(int)(edges[e].head0[1]-nodes),(int)(edges[e].head0[0]-nodes),(int)edges[e].slack/COST_FACTOR);}}
+fclose(fp);}
 
 
 PerfectMatching::~PerfectMatching()
-{
-	free(nodes);
-	free(edges_orig);
-	delete blossoms;
-	delete tree_edges;
-	delete expand_tmp_list;
-	if (trees) free(trees);
-	PriorityQueue<REAL>::DeallocateBuf(pq_buf);
-}
-
-
-PerfectMatching::EdgeId PerfectMatching::AddEdge(NodeId _i, NodeId _j, REAL cost)
-{
-	if (_i<0 || _i>=node_num || _j<0 || _j>node_num || _i==_j)
-	{
-		printf("wrong node id's! (%d,%d)\n", _i, _j); exit(1);
-	}
-	if (edge_num >= edge_num_max) ReallocateEdges();
-	Node* i = nodes + _i;
-	Node* j = nodes + _j;
-	Edge* a = edges + edge_num;
-
-	ADD_EDGE(i, a, 0);
-	ADD_EDGE(j, a, 1);
-	a->head0[0] = j;
-	a->head0[1] = i;
-
-	a->slack = cost*COST_FACTOR;
-	PriorityQueue<REAL>::ResetItem(a);
-
-	return edge_num ++;
-}
+{free(nodes);free(edges_orig);delete blossoms;delete tree_edges;delete expand_tmp_list;if(trees)free(trees);PriorityQueue<REAL>::DeallocateBuf(pq_buf);}
+PerfectMatching::EdgeId PerfectMatching::AddEdge(NodeId _i,NodeId _j,REAL cost)
+{if(_i<0||_i>=node_num||_j<0||_j>node_num||_i==_j)
+{printf("wrong node id's! (%d,%d)\n",_i,_j);exit(1);}
+if(edge_num>=edge_num_max)ReallocateEdges();Node*i=nodes+_i;Node*j=nodes+_j;Edge*a=edges+edge_num;ADD_EDGE(i,a,0);ADD_EDGE(j,a,1);a->head0[0]=j;a->head0[1]=i;a->slack=cost*COST_FACTOR;PriorityQueue<REAL>::ResetItem(a);return edge_num++;}
 
 int PerfectMatching::GetSolution(EdgeId e)
-{
-	assert(e>=0 && e<edge_num);
-	Edge* a = edges + e;
-	return (a->head0[1]->match == EDGE_DIR_TO_ARC(a, 0)) ? 1 : 0;
-}
-
+{assert(e>=0&&e<edge_num);Edge*a=edges+e;return(a->head0[1]->match==EDGE_DIR_TO_ARC(a,0))?1:0;}
 PerfectMatching::NodeId PerfectMatching::GetMatch(NodeId i)
-{
-	assert(i>=0 && i<node_num);
-	return (int)(ARC_HEAD0(nodes[i].match)-nodes);
-}
+{assert(i>=0&&i<node_num);return(int)(ARC_HEAD0(nodes[i].match)-nodes);}
 
-void PerfectMatching::GetRealEndpoints(Edge* a, Node*& tail, Node*& head)
-{
-	Node* i;
-	Node* j;
-	int delta = 0;
-
-	for (i=a->head0[1]; !i->is_outer; i=i->blossom_parent, delta--) {}
-	for (j=a->head0[0]; !j->is_outer; j=j->blossom_parent, delta++) {}
-	if ( i == j )
-	{
-		i = a->head0[1];
-		j = a->head0[0];
-		while ( delta < 0 ) { i = i->blossom_parent; delta ++; }
-		while ( delta > 0 ) { j = j->blossom_parent; delta --; }
-		while ( i->blossom_parent != j->blossom_parent )
-		{
-			i = i->blossom_parent;
-			j = j->blossom_parent; 
-		}
-	}
-	tail = i;
-	head = j;
-	assert((i->is_outer && j->is_outer) || (i->blossom_parent==j->blossom_parent && !i->is_outer && !j->is_outer));
-}
-
+void PerfectMatching::GetRealEndpoints(Edge*a,Node*&tail,Node*&head)
+{Node*i;Node*j;int delta=0;for(i=a->head0[1];!i->is_outer;i=i->blossom_parent,delta--){}
+for(j=a->head0[0];!j->is_outer;j=j->blossom_parent,delta++){}
+if(i==j)
+{i=a->head0[1];j=a->head0[0];while(delta<0){i=i->blossom_parent;delta++;}
+while(delta>0){j=j->blossom_parent;delta--;}
+while(i->blossom_parent!=j->blossom_parent)
+{i=i->blossom_parent;j=j->blossom_parent;}}
+tail=i;head=j;assert((i->is_outer&&j->is_outer)||(i->blossom_parent==j->blossom_parent&&!i->is_outer&&!j->is_outer));}
 void PerfectMatching::ReallocateEdges()
-{
-	edge_num_max = edge_num_max*3/2 + 16;
-	char* edges_orig_old = edges_orig;
-	Edge* edges_old = edges;
-	edges_orig = (char*) realloc(edges_orig_old, edge_num_max*sizeof(Edge)+1);
-	edges = (Edge*) ( ( ((POINTER_TYPE)edges_orig_old) & 1 ) ? (edges_orig + 1) : edges_orig );
-	if ( ((POINTER_TYPE)edges) & 1 )
-	{
-		char* edges_orig_old2 = edges_orig;
-		Edge* edges_old2 = edges;
-
-		edges_orig = (char*) malloc(edge_num_max*sizeof(Edge)+1);
-		edges = (Edge*) ( ( ((POINTER_TYPE)edges_orig_old) & 1 ) ? (edges_orig + 1) : edges_orig );
-		memcpy(edges, edges_old2, edge_num*sizeof(Edge));
-		free(edges_orig_old2);
-	}
-
+{edge_num_max=edge_num_max*3/2+16;char*edges_orig_old=edges_orig;Edge*edges_old=edges;edges_orig=(char*)realloc(edges_orig_old,edge_num_max*sizeof(Edge)+1);edges=(Edge*)((((POINTER_TYPE)edges_orig_old)&1)?(edges_orig+1):edges_orig);if(((POINTER_TYPE)edges)&1)
+{char*edges_orig_old2=edges_orig;Edge*edges_old2=edges;edges_orig=(char*)malloc(edge_num_max*sizeof(Edge)+1);edges=(Edge*)((((POINTER_TYPE)edges_orig_old)&1)?(edges_orig+1):edges_orig);memcpy(edges,edges_old2,edge_num*sizeof(Edge));free(edges_orig_old2);}
 #define UPDATE_EDGE_PTR(ptr) ptr = (Edge*)((char*)(ptr) + ((char*)edges - (char*)edges_old))
 #define UPDATE_ARC_PTR(ptr) ptr = (Arc*)((char*)(ptr) + ((char*)edges - (char*)edges_old))
-
-	Node* i;
-	Edge* a;
-	for (a=edges; a<edges+edge_num; a++)
-	{
-		if (a->next[0]) UPDATE_EDGE_PTR(a->next[0]);
-		if (a->next[1]) UPDATE_EDGE_PTR(a->next[1]);
-		if (a->prev[0]) UPDATE_EDGE_PTR(a->prev[0]);
-		if (a->prev[1]) UPDATE_EDGE_PTR(a->prev[1]);
-	}
-	if (first_solve)
-	{
-		for (i=nodes; i<nodes+node_num; i++)
-		{
-			if (i->first[0]) UPDATE_EDGE_PTR(i->first[0]);
-			if (i->first[1]) UPDATE_EDGE_PTR(i->first[1]);
-		}
-	}
-	else
-	{
-		Node* i0;
-		for (i0=nodes; i0<nodes+node_num; i0++)
-		{
-			i = i0;
-			while ( 1 )
-			{
-				if (i->is_outer)
-				{
-					UPDATE_ARC_PTR(i->match);
-					if (i->first[0]) UPDATE_EDGE_PTR(i->first[0]);
-					if (i->first[1]) UPDATE_EDGE_PTR(i->first[1]);
-					break;
-				}
-				UPDATE_ARC_PTR(i->blossom_sibling);
-				if (i->first[0]) UPDATE_EDGE_PTR(i->first[0]);
-				if (i->first[1]) UPDATE_EDGE_PTR(i->first[1]);
-
-				i = i->blossom_parent;
-				if (i->is_outer) { if ( i->is_marked) break; i->is_marked = 1; }
-				else             { if (!i->is_marked) break; i->is_marked = 0; }
-			}
-		}
-		for (i0=nodes; i0<nodes+node_num; i0++)
-		{
-			i = i0;
-			while ( 1 )
-			{
-				if (i->is_outer) break;
-
-				i = i->blossom_parent;
-				if (i->is_outer) { if (!i->is_marked) break; i->is_marked = 0; }
-				else             { if ( i->is_marked) break; i->is_marked = 1; }
-			}
-		}
-	}
-}
-
+Node*i;Edge*a;for(a=edges;a<edges+edge_num;a++)
+{if(a->next[0])UPDATE_EDGE_PTR(a->next[0]);if(a->next[1])UPDATE_EDGE_PTR(a->next[1]);if(a->prev[0])UPDATE_EDGE_PTR(a->prev[0]);if(a->prev[1])UPDATE_EDGE_PTR(a->prev[1]);}
+if(first_solve)
+{for(i=nodes;i<nodes+node_num;i++)
+{if(i->first[0])UPDATE_EDGE_PTR(i->first[0]);if(i->first[1])UPDATE_EDGE_PTR(i->first[1]);}}
+else
+{Node*i0;for(i0=nodes;i0<nodes+node_num;i0++)
+{i=i0;while(1)
+{if(i->is_outer)
+{UPDATE_ARC_PTR(i->match);if(i->first[0])UPDATE_EDGE_PTR(i->first[0]);if(i->first[1])UPDATE_EDGE_PTR(i->first[1]);break;}
+UPDATE_ARC_PTR(i->blossom_sibling);if(i->first[0])UPDATE_EDGE_PTR(i->first[0]);if(i->first[1])UPDATE_EDGE_PTR(i->first[1]);i=i->blossom_parent;if(i->is_outer){if(i->is_marked)break;i->is_marked=1;}
+else{if(!i->is_marked)break;i->is_marked=0;}}}
+for(i0=nodes;i0<nodes+node_num;i0++)
+{i=i0;while(1)
+{if(i->is_outer)break;i=i->blossom_parent;if(i->is_outer){if(!i->is_marked)break;i->is_marked=0;}
+else{if(i->is_marked)break;i->is_marked=1;}}}}}
 int PerfectMatching::GetBlossomNum()
-{
-	return blossom_num;
-}
-
-void PerfectMatching::GetDualSolution(int* blossom_parents, REAL* twice_y)
-{
-	int _i0, id = node_num;
-	int* child_ptr;
-	Node* i0;
-	Node* i;
-	int* tmp_array = new int[blossom_num];
-
-	int* tmp_array_ptr = tmp_array;
-	for (_i0=0, i0=nodes; _i0<node_num; _i0++, i0++)
-	{
-		twice_y[_i0] = i0->y;
-		if (i0->is_outer)
-		{
-			blossom_parents[_i0] = -1;
-			continue;
-		}
-		child_ptr = &blossom_parents[_i0];
-		i = i0->blossom_parent;
-		while ( 1 )
-		{
-			if (i->is_marked)
-			{
-				*child_ptr = i->lca_preorder;
-				break;
-			}
-			i->is_marked = 1;
-			*tmp_array_ptr ++ = i->lca_preorder;
-			*child_ptr = i->lca_preorder = id ++;
-			child_ptr = &blossom_parents[i->lca_preorder];
-			twice_y[i->lca_preorder] = i->y;
-			if (i->is_outer)
-			{
-				*child_ptr = -1;
-				break;
-			}
-			i = i->blossom_parent;
-		}
-	}
-
-	assert(id == node_num+blossom_num && tmp_array_ptr == tmp_array + blossom_num);
-
-	tmp_array_ptr = tmp_array;
-	for (_i0=0, i0=nodes; _i0<node_num; _i0++, i0++)
-	{
-		if (i0->is_outer) continue;
-		i = i0->blossom_parent;
-		while ( 1 )
-		{
-			if (!i->is_marked) break;
-			i->is_marked = 0;
-			i->lca_preorder = *tmp_array_ptr ++;
-			if (i->is_outer) break;
-			i = i->blossom_parent;
-		}
-	}
-
-	delete [] tmp_array;
-}
+{return blossom_num;}
+void PerfectMatching::GetDualSolution(int*blossom_parents,REAL*twice_y)
+{int _i0,id=node_num;int*child_ptr;Node*i0;Node*i;int*tmp_array=new int[blossom_num];int*tmp_array_ptr=tmp_array;for(_i0=0,i0=nodes;_i0<node_num;_i0++,i0++)
+{twice_y[_i0]=i0->y;if(i0->is_outer)
+{blossom_parents[_i0]=-1;continue;}
+child_ptr=&blossom_parents[_i0];i=i0->blossom_parent;while(1)
+{if(i->is_marked)
+{*child_ptr=i->lca_preorder;break;}
+i->is_marked=1;*tmp_array_ptr++=i->lca_preorder;*child_ptr=i->lca_preorder=id++;child_ptr=&blossom_parents[i->lca_preorder];twice_y[i->lca_preorder]=i->y;if(i->is_outer)
+{*child_ptr=-1;break;}
+i=i->blossom_parent;}}
+assert(id==node_num+blossom_num&&tmp_array_ptr==tmp_array+blossom_num);tmp_array_ptr=tmp_array;for(_i0=0,i0=nodes;_i0<node_num;_i0++,i0++)
+{if(i0->is_outer)continue;i=i0->blossom_parent;while(1)
+{if(!i->is_marked)break;i->is_marked=0;i->lca_preorder=*tmp_array_ptr++;if(i->is_outer)break;i=i->blossom_parent;}}
+delete[]tmp_array;}
 
 void PerfectMatching::Finish()
 {
@@ -853,54 +663,18 @@ struct PerfectMatching::LCATreeX : LCATree
 };
 
 void PerfectMatching::StartUpdate()
-{
-	Node* i0;
-	Node* i;
-	Node* j;
-	Node* b;
-
-	while ((i=removed_first))
-	{
-		removed_first = i->tree_sibling_next;
-		blossoms->Delete(i);
-		removed_num --;
-	}
-
-	Edge* a;
-	Edge* selfloop_first = NULL;
-	Edge* selfloop_last = NULL;
-
-	for (i0=nodes; i0<nodes+node_num; i0++)
-	{
-		i0->is_processed = 0;
-		if (i0->is_outer) continue;
-
-		i0->is_tree_root = 0;
-		i0->blossom_ptr = NULL;
-		i = i0;
-		while ( 1 )
-		{
-			j = i->blossom_parent;
-			j->is_processed = 0;
-			if (j->is_outer) { j->first_tree_child = i; break; }
-			if (j->is_marked) break;
-			if ((a=j->blossom_selfloops))
-			{
-				if (selfloop_last) selfloop_last->next[1] = a;
-				else               selfloop_first         = a;
-				selfloop_last = a;
-				a->next[1] = NULL;
-			}
-			j->blossom_ptr = i;
-			i = j;
-		}
-		b = (i->blossom_parent->is_outer) ? i->blossom_parent : i->blossom_parent->blossom_grandparent;
+{Node*i0;Node*i;Node*j;Node*b;while((i=removed_first))
+{removed_first=i->tree_sibling_next;blossoms->Delete(i);removed_num--;}
+Edge*a;Edge*selfloop_first=NULL;Edge*selfloop_last=NULL;for(i0=nodes;i0<nodes+node_num;i0++)
+{i0->is_processed=0;if(i0->is_outer)continue;i0->is_tree_root=0;i0->blossom_ptr=NULL;i=i0;while(1)
+{j=i->blossom_parent;j->is_processed=0;if(j->is_outer){j->first_tree_child=i;break;}
+if(j->is_marked)break;if((a=j->blossom_selfloops))
+{if(selfloop_last)selfloop_last->next[1]=a;else selfloop_first=a;selfloop_last=a;a->next[1]=NULL;}
+j->blossom_ptr=i;i=j;}
+b=(i->blossom_parent->is_outer)?i->blossom_parent:i->blossom_parent->blossom_grandparent;
 #ifdef LCA_REPAIRS
-		if (!b->is_marked)
-		{
-			b->lca_size = 1;
-			b->is_marked = 1;
-		}
+if(!b->is_marked)
+{b->lca_size=1;b->is_marked=1;}
 #endif
 		while ( 1 )
 		{
@@ -1005,138 +779,33 @@ void PerfectMatching::FinishUpdate()
 #endif
 
 		
-		if (!i0->blossom_grandparent->is_removed)
-		{
-			i = i0;
-			do
-			{
-				i->y = ARC_TO_EDGE_PTR(i->blossom_sibling)->y_saved;
-				i->is_marked = 0;
-				i->blossom_selfloops = NULL;
-				i = i->blossom_parent;
-			} while (i->is_marked);
-			continue;
-		}
-		
-
-		i = i0->blossom_parent;
-		while ( 1 )
-		{
-			if (i->is_removed && !i->is_outer) break;
-			REAL y_parent = (i->is_outer) ? 0 : i->blossom_parent->y;
-			for (dir=0; dir<2; dir++)
-			{
-				if (!i->first[dir]) continue;
-				i->first[dir]->prev[dir]->next[dir] = NULL;
-				Edge* a_next;
-				for (a=i->first[dir]; a; a=a_next)
-				{
-					a_next = a->next[dir];
-					j = a->head0[1-dir];
-					ADD_EDGE(j, a, dir);
-					a->slack += j->blossom_parent->y - y_parent;
-				}
-				i->first[dir] = NULL;
-			}
-			if (i->is_removed) break;
-
-			j = i->blossom_parent;
-			i->is_removed = 1;
-			i->tree_sibling_next = removed_first;
-			removed_first = i;
-			i = j;
-		}
-		i0->y = ARC_TO_EDGE_PTR(i0->blossom_sibling)->y_saved;
-		i0->is_outer = 1;
-		i0->flag = 2;
-		i0->is_tree_root = 1;
-	}
-
-	Node* blossom_list = nodes[node_num].first_tree_child;
-
-
-
-	for (i=nodes; i<nodes+node_num; i++)
-	{
-		if (!i->is_tree_root) continue;
-		i->first_tree_child = nodes[node_num].first_tree_child;
-		nodes[node_num].first_tree_child = i;
-		REAL slack_min = PM_INFTY;
-		FOR_ALL_EDGES(i, a, dir, I)
-		{
-			if (slack_min > a->slack) slack_min = a->slack;
-		}
-		i->y += slack_min;
-		FOR_ALL_EDGES(i, a, dir, I) a->slack -= slack_min;
-	}
-
-	tree_num = 0;
-	for (i=nodes[node_num].first_tree_child; i!=blossom_list; i=i->first_tree_child)
-	{
-		tree_num ++;
-		if (!i->is_tree_root) continue;
-		FOR_ALL_EDGES(i, a, dir, I)
-		{
-			j = a->head[dir];
-			if (a->slack <= 0 && j->is_tree_root)
-			{
-				i->is_tree_root = j->is_tree_root = 0;
-				i->match = EDGE_DIR_TO_ARC(a, dir);
-				j->match = EDGE_DIR_TO_ARC(a, 1-dir);
-				tree_num -= 2;
-				break;
-			}
-		}
-	}
-	for ( ; i; i=i->first_tree_child)
-	{
-		if (i->is_removed) { i->is_tree_root = 0; continue; }
-		tree_num ++;
-	}
-
-	if (tree_num > tree_num_max)
-	{
-		if (trees) free(trees);
-		tree_num_max = tree_num;
-		trees = (Tree*) malloc(tree_num_max*sizeof(Tree));
-	}
-	t = trees;
-
-	Node* last_root = &nodes[node_num];
-	Node* i_next;
-	for (i=nodes; i; i=i_next)
-	{
-		if (!i->is_blossom) i_next = (i<nodes+node_num) ? (i + 1) : blossom_list;
-		else                i_next = i->first_tree_child;
-		if (!i->is_tree_root) continue;
-
-		i->flag = 0;
-		i->first_tree_child = NULL;
-		i->tree_sibling_prev = last_root;
-		last_root->tree_sibling_next = i;
-		last_root = i;
-		i->tree = t;
-		t->root = i;
-		t->eps = 0;
-		t->first[0] = t->first[1] = NULL;
-		t->pq_current = NULL;
-		t->pq00.Reset();
-		t->pq0.Reset();
-		t->pq_blossoms.Reset();
-		t ++;
-	}
-
-	assert(t == trees + tree_num);
-	last_root->tree_sibling_next = NULL;
-
-	while ((i=removed_first))
-	{
-		removed_first = i->tree_sibling_next;
-		blossoms->Delete(i);
-		blossom_num --;
-	}
-}
-
+		if(!i0->blossom_grandparent->is_removed)
+{i=i0;do
+{i->y=ARC_TO_EDGE_PTR(i->blossom_sibling)->y_saved;i->is_marked=0;i->blossom_selfloops=NULL;i=i->blossom_parent;}while(i->is_marked);continue;}
+i=i0->blossom_parent;while(1)
+{if(i->is_removed&&!i->is_outer)break;REAL y_parent=(i->is_outer)?0:i->blossom_parent->y;for(dir=0;dir<2;dir++)
+{if(!i->first[dir])continue;i->first[dir]->prev[dir]->next[dir]=NULL;Edge*a_next;for(a=i->first[dir];a;a=a_next)
+{a_next=a->next[dir];j=a->head0[1-dir];ADD_EDGE(j,a,dir);a->slack+=j->blossom_parent->y-y_parent;}
+i->first[dir]=NULL;}
+if(i->is_removed)break;j=i->blossom_parent;i->is_removed=1;i->tree_sibling_next=removed_first;removed_first=i;i=j;}
+i0->y=ARC_TO_EDGE_PTR(i0->blossom_sibling)->y_saved;i0->is_outer=1;i0->flag=2;i0->is_tree_root=1;}
+Node*blossom_list=nodes[node_num].first_tree_child;for(i=nodes;i<nodes+node_num;i++)
+{if(!i->is_tree_root)continue;i->first_tree_child=nodes[node_num].first_tree_child;nodes[node_num].first_tree_child=i;REAL slack_min=PM_INFTY;FOR_ALL_EDGES(i,a,dir,I)
+{if(slack_min>a->slack)slack_min=a->slack;}
+i->y+=slack_min;FOR_ALL_EDGES(i,a,dir,I)a->slack-=slack_min;}
+tree_num=0;for(i=nodes[node_num].first_tree_child;i!=blossom_list;i=i->first_tree_child)
+{tree_num++;if(!i->is_tree_root)continue;FOR_ALL_EDGES(i,a,dir,I)
+{j=a->head[dir];if(a->slack<=0&&j->is_tree_root)
+{i->is_tree_root=j->is_tree_root=0;i->match=EDGE_DIR_TO_ARC(a,dir);j->match=EDGE_DIR_TO_ARC(a,1-dir);tree_num-=2;break;}}}
+for(;i;i=i->first_tree_child)
+{if(i->is_removed){i->is_tree_root=0;continue;}
+tree_num++;}
+if(tree_num>tree_num_max)
+{if(trees)free(trees);tree_num_max=tree_num;trees=(Tree*)malloc(tree_num_max*sizeof(Tree));}
+t=trees;Node*last_root=&nodes[node_num];Node*i_next;for(i=nodes;i;i=i_next)
+{if(!i->is_blossom)i_next=(i<nodes+node_num)?(i+1):blossom_list;else i_next=i->first_tree_child;if(!i->is_tree_root)continue;i->flag=0;i->first_tree_child=NULL;i->tree_sibling_prev=last_root;last_root->tree_sibling_next=i;last_root=i;i->tree=t;t->root=i;t->eps=0;t->first[0]=t->first[1]=NULL;t->pq_current=NULL;t->pq00.Reset();t->pq0.Reset();t->pq_blossoms.Reset();t++;}
+assert(t==trees+tree_num);last_root->tree_sibling_next=NULL;while((i=removed_first))
+{removed_first=i->tree_sibling_next;blossoms->Delete(i);blossom_num--;}}
 PerfectMatching::REAL PerfectMatching::GetTwiceSum(NodeId i)
 {assert(i>=0&&i<node_num);return nodes[i].y;}
 inline void PerfectMatching::ProcessNegativeEdge(Edge*a)

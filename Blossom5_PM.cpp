@@ -2,1714 +2,416 @@
 #include <stdlib.h>
 #include <string.h>
 #include "Blossom5_PM.h"
-
 struct Node
-{
-	PerfectMatching::REAL sum; 
-	Node* match;
-	Node* parent;
-	Node* child;
-	Node* sibling;
-	int lca_preorder;
-};
-
-int CheckPerfectMatchingOptimality(int node_num, int edge_num, int* edges, int* weights, PerfectMatching* pm, PerfectMatching::REAL threshold)
-{
-	int _i, _j, _e;
-	Node* i;
-	Node* j;
-	int blossom_num = pm->GetBlossomNum();
-	int* blossom_parents = new int[node_num+blossom_num];
-	PerfectMatching::REAL* twice_y = new PerfectMatching::REAL[node_num+blossom_num];
-
-	PerfectMatching::REAL y_blossom_min = 0;
-	PerfectMatching::REAL slack_min = 0;
-	PerfectMatching::REAL active_slack_max = 0;
-
-	
-	pm->GetDualSolution(blossom_parents, twice_y);
-	Node* nodes = new Node[node_num+blossom_num+1];
-	memset(nodes, 0, (node_num+blossom_num+1)*sizeof(Node));
-	Node* ROOT = nodes+node_num+blossom_num;
-	for (_i=0, i=nodes; _i<node_num+blossom_num; _i++, i++)
-	{
-		i->sum = twice_y[_i];
-		if (_i >= node_num && y_blossom_min > i->sum) y_blossom_min = i->sum;
-		if (blossom_parents[_i] >= 0)
-		{
-			if (blossom_parents[_i]<node_num || blossom_parents[_i]>=node_num+blossom_num)
-			{
-				delete [] nodes;
-				delete [] blossom_parents;
-				delete [] twice_y;
-				return 2;
-			}
-			i->parent = nodes + blossom_parents[_i];
-			i->sibling = i->parent->child;
-			i->parent->child = i;
-		}
-	}
-	delete [] blossom_parents;
-	delete [] twice_y;
-
-	for (i=nodes; i<nodes+node_num+blossom_num; i++)
-	{
-		if (!i->parent)
-		{
-			i->parent = ROOT;
-			i->sibling = ROOT->child;
-			ROOT->child = i;
-		}
-	}
-
-	LCATree* lca_tree = new LCATree(node_num+blossom_num+1);
-	Node** rev_mapping = new Node*[node_num+blossom_num];
-
-	i = ROOT;
-	while ( 1 )
-	{
-		if (i->child)
-		{
-			if (i < nodes+node_num) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
-			i->child->sum += i->sum;
-			i = i->child;
-		}
-		else
-		{
-			if (i >= nodes+node_num) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
-			while ( 1 )
-			{
-				i->lca_preorder = lca_tree->Add(i, i->parent);
-				rev_mapping[i->lca_preorder] = i;
-				if (i->sibling) break;
-				i = i->parent;
-				if (i == ROOT)
-				{
-					i->lca_preorder = lca_tree->AddRoot(i);
-					break;
-				}
-			}
-			if (i == ROOT) break;
-			i = i->sibling;
-			i->sum += i->parent->sum;
-		}
-	}
-
-	int matched_num = 0;
-	for (_e=0; _e<edge_num; _e++)
-	{
-		_i = edges[2*_e];
-		_j = edges[2*_e+1];
-		if (_i<0 || _j<0 || _i>=node_num || _j>=node_num || _i==_j) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
-
-		int lca_i = nodes[_i].lca_preorder;
-		int lca_j = nodes[_j].lca_preorder;
-		lca_tree->GetPenultimateNodes(lca_i, lca_j);
-		i = rev_mapping[lca_i];
-		j = rev_mapping[lca_j];
-		PerfectMatching::REAL twice_slack = 2*weights[_e] - (nodes[_i].sum - i->parent->sum) - (nodes[_j].sum - j->parent->sum);
-		if (slack_min > twice_slack) slack_min = twice_slack;
-		if (pm->GetSolution(_e))
-		{
-			if (pm->GetMatch(_i)!=_j || pm->GetMatch(_j)!=_i || i->match || j->match) { delete [] nodes; delete lca_tree; delete [] rev_mapping; return 2; }
-			i->match = j;
-			j->match = i;
-			if (active_slack_max < twice_slack) active_slack_max = twice_slack;
-			matched_num += 2;
-		}
-	}
-
-	delete [] nodes;
-	delete lca_tree;
-	delete [] rev_mapping;
-
-	if (matched_num != node_num) return 2;
-
-	if (y_blossom_min < -threshold || slack_min < -threshold || active_slack_max > threshold)
-	{
-		return 1;
-	}
-
-	return 0;
-}
-
-double ComputePerfectMatchingCost(int node_num, int edge_num, int* edges, int* weights, PerfectMatching* pm)
-{
-	int i;
-	int j;
-	int e;
-	double cost = 0;
-
-	int* nodes = new int[node_num];
-	memset(nodes, 0, node_num*sizeof(int));
-	for (e=0; e<edge_num; e++)
-	{
-		if (pm->GetSolution(e))
-		{
-			i = edges[2*e];
-			j = edges[2*e+1];
-			nodes[i] ++;
-			nodes[j] ++;
-			cost += weights[e];
-		}
-	}
-	for (i=0; i<node_num; i++)
-	{
-		if (nodes[i] != 1)
-		{
-			printf("ComputeCost(): degree = %d!\n", nodes[i]);
-			exit(1);
-		}
-	}
-	delete [] nodes;
-	return cost;
-}
-
-
-template <typename FlowType, typename CostType> 
-	MinCost<FlowType, CostType>::MinCost(int _nodeNum, int _edgeNumMax, void (*err_function)(const char *))
-	: nodeNum(_nodeNum),
-	  edgeNum(0),
-	  edgeNumMax(_edgeNumMax),
-	  counter(0),
-	  cost(0),
-	  error_function(err_function)
-{
-	nodes = (Node*) malloc(nodeNum*sizeof(Node));
-	arcs = (Arc*) malloc(2*edgeNumMax*sizeof(Arc));
-	if (!nodes || !arcs) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
-
-	memset(nodes, 0, nodeNum*sizeof(Node));
-	memset(arcs, 0, 2*edgeNumMax*sizeof(Arc));
-	firstActive = &nodes[nodeNum];
+{PerfectMatching::REAL sum;Node*match;Node*parent;Node*child;Node*sibling;int lca_preorder;};int CheckPerfectMatchingOptimality(int node_num,int edge_num,int*edges,int*weights,PerfectMatching*pm,PerfectMatching::REAL threshold)
+{int _i,_j,_e;Node*i;Node*j;int blossom_num=pm->GetBlossomNum();int*blossom_parents=new int[node_num+blossom_num];PerfectMatching::REAL*twice_y=new PerfectMatching::REAL[node_num+blossom_num];PerfectMatching::REAL y_blossom_min=0;PerfectMatching::REAL slack_min=0;PerfectMatching::REAL active_slack_max=0;pm->GetDualSolution(blossom_parents,twice_y);Node*nodes=new Node[node_num+blossom_num+1];memset(nodes,0,(node_num+blossom_num+1)*sizeof(Node));Node*ROOT=nodes+node_num+blossom_num;for(_i=0,i=nodes;_i<node_num+blossom_num;_i++,i++)
+{i->sum=twice_y[_i];if(_i>=node_num&&y_blossom_min>i->sum)y_blossom_min=i->sum;if(blossom_parents[_i]>=0)
+{if(blossom_parents[_i]<node_num||blossom_parents[_i]>=node_num+blossom_num)
+{delete[]nodes;delete[]blossom_parents;delete[]twice_y;return 2;}
+i->parent=nodes+blossom_parents[_i];i->sibling=i->parent->child;i->parent->child=i;}}
+delete[]blossom_parents;delete[]twice_y;for(i=nodes;i<nodes+node_num+blossom_num;i++)
+{if(!i->parent)
+{i->parent=ROOT;i->sibling=ROOT->child;ROOT->child=i;}}
+LCATree*lca_tree=new LCATree(node_num+blossom_num+1);Node**rev_mapping=new Node*[node_num+blossom_num];i=ROOT;while(1)
+{if(i->child)
+{if(i<nodes+node_num){delete[]nodes;delete lca_tree;delete[]rev_mapping;return 2;}
+i->child->sum+=i->sum;i=i->child;}
+else
+{if(i>=nodes+node_num){delete[]nodes;delete lca_tree;delete[]rev_mapping;return 2;}
+while(1)
+{i->lca_preorder=lca_tree->Add(i,i->parent);rev_mapping[i->lca_preorder]=i;if(i->sibling)break;i=i->parent;if(i==ROOT)
+{i->lca_preorder=lca_tree->AddRoot(i);break;}}
+if(i==ROOT)break;i=i->sibling;i->sum+=i->parent->sum;}}
+int matched_num=0;for(_e=0;_e<edge_num;_e++)
+{_i=edges[2*_e];_j=edges[2*_e+1];if(_i<0||_j<0||_i>=node_num||_j>=node_num||_i==_j){delete[]nodes;delete lca_tree;delete[]rev_mapping;return 2;}
+int lca_i=nodes[_i].lca_preorder;int lca_j=nodes[_j].lca_preorder;lca_tree->GetPenultimateNodes(lca_i,lca_j);i=rev_mapping[lca_i];j=rev_mapping[lca_j];PerfectMatching::REAL twice_slack=2*weights[_e]-(nodes[_i].sum-i->parent->sum)-(nodes[_j].sum-j->parent->sum);if(slack_min>twice_slack)slack_min=twice_slack;if(pm->GetSolution(_e))
+{if(pm->GetMatch(_i)!=_j||pm->GetMatch(_j)!=_i||i->match||j->match){delete[]nodes;delete lca_tree;delete[]rev_mapping;return 2;}
+i->match=j;j->match=i;if(active_slack_max<twice_slack)active_slack_max=twice_slack;matched_num+=2;}}
+delete[]nodes;delete lca_tree;delete[]rev_mapping;if(matched_num!=node_num)return 2;if(y_blossom_min<-threshold||slack_min<-threshold||active_slack_max>threshold)
+{return 1;}
+return 0;}
+double ComputePerfectMatchingCost(int node_num,int edge_num,int*edges,int*weights,PerfectMatching*pm)
+{int i;int j;int e;double cost=0;int*nodes=new int[node_num];memset(nodes,0,node_num*sizeof(int));for(e=0;e<edge_num;e++)
+{if(pm->GetSolution(e))
+{i=edges[2*e];j=edges[2*e+1];nodes[i]++;nodes[j]++;cost+=weights[e];}}
+for(i=0;i<node_num;i++)
+{if(nodes[i]!=1)
+{printf("ComputeCost(): degree = %d!\n",nodes[i]);exit(1);}}
+delete[]nodes;return cost;}
+template<typename FlowType,typename CostType>MinCost<FlowType,CostType>::MinCost(int _nodeNum,int _edgeNumMax,void(*err_function)(const char*)):nodeNum(_nodeNum),edgeNum(0),edgeNumMax(_edgeNumMax),counter(0),cost(0),error_function(err_function)
+{nodes=(Node*)malloc(nodeNum*sizeof(Node));arcs=(Arc*)malloc(2*edgeNumMax*sizeof(Arc));if(!nodes||!arcs){if(error_function)(*error_function)("Not enough memory!");exit(1);}
+memset(nodes,0,nodeNum*sizeof(Node));memset(arcs,0,2*edgeNumMax*sizeof(Arc));firstActive=&nodes[nodeNum];
 #ifdef MINCOST_DEBUG
 	for (int i=0; i<nodeNum; i++) nodes[i].id = i;
 #endif
 }
-
-template <typename FlowType, typename CostType> 
-	MinCost<FlowType, CostType>::~MinCost()
-{
-	free(nodes);
-	free(arcs);
-}
-
-template <typename FlowType, typename CostType> 
-	void MinCost<FlowType, CostType>::Init()
-{
-	Node* i;
-	Arc* a;
-
-	for (a=arcs; a<arcs+2*edgeNum; a++)
-	{
-		if (a->r_cap > 0 && a->GetRCost() < 0) PushFlow(a, a->r_cap);
-	}
-
-	Node** lastActivePtr = &firstActive;
-	for (i=nodes; i<nodes+nodeNum; i++)
-	{
-		if (i->excess > 0)
-		{
-			*lastActivePtr = i;
-			lastActivePtr = &i->next;
-		}
-		else i->next = NULL;
-	}
-	*lastActivePtr = &nodes[nodeNum];
-}
-
-
-template <typename FlowType, typename CostType> 
-	FlowType MinCost<FlowType, CostType>::Augment(Node* start, Node* end)
-{
-	FlowType delta = (start->excess < -end->excess) ? start->excess : -end->excess;
-	Arc* a;
-
-	for (a=end->parent; a; a=a->sister->head->parent)
-	{
-		if (delta > a->r_cap) delta = a->r_cap;
-	}
-	assert(delta > 0);
-
-	end->excess += delta;
-	for (a=end->parent; a; a=a->head->parent)
-	{
-		DecreaseRCap(a, delta);
-		a = a->sister;
-		IncreaseRCap(a, delta);
-	}
-	start->excess -= delta;
-
-	return delta;
-}
-
-template <typename FlowType, typename CostType> 
-	void MinCost<FlowType, CostType>::Dijkstra(Node* start)
-{
-	assert(start->excess > 0);
-
-	Node* i;
-	Node* j;
-	Arc* a;
-	CostType d;
-	Node* permanentNodes;
-
-	int FLAG0 = ++ counter; 
-	int FLAG1 = ++ counter; 
-
-	start->parent = NULL;
-	start->flag = FLAG1;
-	queue.Reset();
-	queue.Add(start, 0);
-
-	permanentNodes = NULL;
-
-	while ( (i=queue.RemoveMin(d)) )
-	{
-		if (i->excess < 0)
-		{
-			FlowType delta = Augment(start, i);
-			cost += delta*(d - i->pi + start->pi);
-			for (i=permanentNodes; i; i=i->next_permanent) i->pi += d;
-			break;
-		}
-
-		i->pi -= d;
-		i->flag = FLAG0;
-		i->next_permanent = permanentNodes;
-		permanentNodes = i;
-
-		for (a=i->firstNonsaturated; a; a=a->next)
-		{
-			j = a->head;
-			if (j->flag == FLAG0) continue;
-			d = a->GetRCost();
-			if (j->flag == FLAG1)
-			{
-				if (d >= queue.GetKey(j)) continue;
-				queue.DecreaseKey(j, d);
-			}
-			else
-			{
-				queue.Add(j, d);
-				j->flag = FLAG1;
-			}
-			j->parent = a;
-		}
-
-	}
-}
-
-
-template <typename FlowType, typename CostType> 
-	CostType MinCost<FlowType, CostType>::Solve()
-{
-	Node* i;
-	
-	while ( 1 )
-	{
-		i = firstActive;
-		if (i == &nodes[nodeNum]) break;
-		firstActive = i->next;
-		i->next = NULL;
-		if (i->excess > 0)
-		{
-			Dijkstra(i);
-			if (i->excess > 0 && !i->next) 
-			{ 
-				i->next = firstActive; 
-				firstActive = i; 
-			}
-		}
-	}
+template<typename FlowType,typename CostType>MinCost<FlowType,CostType>::~MinCost()
+{free(nodes);free(arcs);}
+template<typename FlowType,typename CostType>void MinCost<FlowType,CostType>::Init()
+{Node*i;Arc*a;for(a=arcs;a<arcs+2*edgeNum;a++)
+{if(a->r_cap>0&&a->GetRCost()<0)PushFlow(a,a->r_cap);}
+Node**lastActivePtr=&firstActive;for(i=nodes;i<nodes+nodeNum;i++)
+{if(i->excess>0)
+{*lastActivePtr=i;lastActivePtr=&i->next;}
+else i->next=NULL;}*lastActivePtr=&nodes[nodeNum];}
+template<typename FlowType,typename CostType>FlowType MinCost<FlowType,CostType>::Augment(Node*start,Node*end)
+{FlowType delta=(start->excess<-end->excess)?start->excess:-end->excess;Arc*a;for(a=end->parent;a;a=a->sister->head->parent)
+{if(delta>a->r_cap)delta=a->r_cap;}
+assert(delta>0);end->excess+=delta;for(a=end->parent;a;a=a->head->parent)
+{DecreaseRCap(a,delta);a=a->sister;IncreaseRCap(a,delta);}
+start->excess-=delta;return delta;}
+template<typename FlowType,typename CostType>void MinCost<FlowType,CostType>::Dijkstra(Node*start)
+{assert(start->excess>0);Node*i;Node*j;Arc*a;CostType d;Node*permanentNodes;int FLAG0=++counter;int FLAG1=++counter;start->parent=NULL;start->flag=FLAG1;queue.Reset();queue.Add(start,0);permanentNodes=NULL;while((i=queue.RemoveMin(d)))
+{if(i->excess<0)
+{FlowType delta=Augment(start,i);cost+=delta*(d-i->pi+start->pi);for(i=permanentNodes;i;i=i->next_permanent)i->pi+=d;break;}
+i->pi-=d;i->flag=FLAG0;i->next_permanent=permanentNodes;permanentNodes=i;for(a=i->firstNonsaturated;a;a=a->next)
+{j=a->head;if(j->flag==FLAG0)continue;d=a->GetRCost();if(j->flag==FLAG1)
+{if(d>=queue.GetKey(j))continue;queue.DecreaseKey(j,d);}
+else
+{queue.Add(j,d);j->flag=FLAG1;}
+j->parent=a;}}}
+template<typename FlowType,typename CostType>CostType MinCost<FlowType,CostType>::Solve()
+{Node*i;while(1)
+{i=firstActive;if(i==&nodes[nodeNum])break;firstActive=i->next;i->next=NULL;if(i->excess>0)
+{Dijkstra(i);if(i->excess>0&&!i->next)
+{i->next=firstActive;firstActive=i;}}}
 #ifdef MINCOST_DEBUG
 	TestOptimality();
 	TestCosts();
 #endif
-
 	return cost;
 }
-
-
-template <typename FlowType, typename CostType> 
-	void MinCost<FlowType, CostType>::TestOptimality()
-{
-	Node* i;
-	Arc* a;
-
-	for (i=nodes; i<nodes+nodeNum; i++)
-	{
-		if (i->excess != 0)
-		{
-			assert(0);
-		}
-		for (a=i->firstSaturated; a; a=a->next)
-		{
-			if (a->r_cap != 0)
-			{
-				assert(0);
-			}
-		}
-		for (a=i->firstNonsaturated; a; a=a->next)
-		{
-			CostType c = a->GetRCost();
-			if (a->r_cap <= 0 || a->GetRCost() < -1e-5)
-			{
-				assert(0);
-			}
-		}
-	}
-}
+template<typename FlowType,typename CostType>void MinCost<FlowType,CostType>::TestOptimality()
+{Node*i;Arc*a;for(i=nodes;i<nodes+nodeNum;i++)
+{if(i->excess!=0)
+{assert(0);}
+for(a=i->firstSaturated;a;a=a->next)
+{if(a->r_cap!=0)
+{assert(0);}}
+for(a=i->firstNonsaturated;a;a=a->next)
+{CostType c=a->GetRCost();if(a->r_cap<=0||a->GetRCost()<-1e-5)
+{assert(0);}}}}
 
 #ifdef MINCOST_DEBUG
-
-template <typename FlowType, typename CostType> 
-	void MinCost<FlowType, CostType>::TestCosts()
-{
-	Arc* a;
-
-	CostType _cost = 0;
-
-	for (a=arcs; a<arcs+2*edgeNum; a+=2)
-	{
-		assert(a->r_cap + a->sister->r_cap == a->cap_orig + a->sister->cap_orig);
-		_cost += a->cost*(a->cap_orig - a->r_cap);
-	}
-
-	CostType delta = cost - _cost;
-	if (delta < 0) delta = -delta;
-	if (delta >= 1e-5)
-	{
-		assert(0);
-	}
-}
-
+template<typename FlowType,typename CostType>void MinCost<FlowType,CostType>::TestCosts()
+{Arc*a;CostType _cost=0;for(a=arcs;a<arcs+2*edgeNum;a+=2)
+{assert(a->r_cap+a->sister->r_cap==a->cap_orig+a->sister->cap_orig);_cost+=a->cost*(a->cap_orig-a->r_cap);}
+CostType delta=cost-_cost;if(delta<0)delta=-delta;if(delta>=1e-5)
+{assert(0);}}
 #endif
 #define FLOW_INFTY ((int)0x00fffffff)
-
-template <typename CostType> 
-	DualMinCost<CostType>::DualMinCost(int _nodeNum, int _edgeNumMax)
-	: MinCost<int,CostType>(_nodeNum+1, _edgeNumMax+2*_nodeNum)
-{
-	source = _nodeNum;
-}
-
-template <typename CostType> 
-	DualMinCost<CostType>::~DualMinCost()
-{
-}
-
-template <typename CostType> 
-	void DualMinCost<CostType>::AddUnaryTerm(NodeId i, int objective_coef)
-{
-	MinCost<int, CostType>::AddNodeExcess(i, objective_coef);
-	MinCost<int, CostType>::AddNodeExcess(source, -objective_coef);
-}
-
-template <typename CostType> 
-	void DualMinCost<CostType>::SetLowerBound(NodeId i, CostType cmin)
-{
-	DualMinCost<CostType>::AddEdge(i, source, FLOW_INFTY, 0, -cmin);
-}
-
-template <typename CostType> 
-	void DualMinCost<CostType>::SetUpperBound(NodeId i, CostType cmax)
-{
-	DualMinCost<CostType>::AddEdge(source, i, FLOW_INFTY, 0, cmax);
-}
-
-template <typename CostType> 
-	void DualMinCost<CostType>::AddConstraint(NodeId i, NodeId j, CostType cmax)
-{
-	DualMinCost<CostType>::AddEdge(i, j, FLOW_INFTY, 0, cmax);
-}
-
-template <typename CostType> 
-	void DualMinCost<CostType>::Solve()
-{
-	MinCost<int,CostType>::Solve();
-}
-
-template <typename CostType> 
-	CostType DualMinCost<CostType>::GetSolution(NodeId i)
-{
-	return MinCost<int, CostType>::nodes[source].pi - MinCost<int, CostType>::nodes[i].pi;
-}
-
-
-
-
+template<typename CostType>DualMinCost<CostType>::DualMinCost(int _nodeNum,int _edgeNumMax):MinCost<int,CostType>(_nodeNum+1,_edgeNumMax+2*_nodeNum)
+{source=_nodeNum;}
+template<typename CostType>DualMinCost<CostType>::~DualMinCost()
+{}
+template<typename CostType>void DualMinCost<CostType>::AddUnaryTerm(NodeId i,int objective_coef)
+{MinCost<int,CostType>::AddNodeExcess(i,objective_coef);MinCost<int,CostType>::AddNodeExcess(source,-objective_coef);}
+template<typename CostType>void DualMinCost<CostType>::SetLowerBound(NodeId i,CostType cmin)
+{DualMinCost<CostType>::AddEdge(i,source,FLOW_INFTY,0,-cmin);}
+template<typename CostType>void DualMinCost<CostType>::SetUpperBound(NodeId i,CostType cmax)
+{DualMinCost<CostType>::AddEdge(source,i,FLOW_INFTY,0,cmax);}
+template<typename CostType>void DualMinCost<CostType>::AddConstraint(NodeId i,NodeId j,CostType cmax)
+{DualMinCost<CostType>::AddEdge(i,j,FLOW_INFTY,0,cmax);}
+template<typename CostType>void DualMinCost<CostType>::Solve()
+{MinCost<int,CostType>::Solve();}
+template<typename CostType>CostType DualMinCost<CostType>::GetSolution(NodeId i)
+{return MinCost<int,CostType>::nodes[source].pi-MinCost<int,CostType>::nodes[i].pi;}
 #ifdef _MSC_VER
 #pragma warning(disable: 4661)
 #endif
-
-
-template class MinCost<int,int>;
-template class MinCost<int,double>;
-
-template class DualMinCost<int>;
-template class DualMinCost<double>;
-
-void PerfectMatching::ComputeEpsGlobal()
-{
-	Node* r;
-	PriorityQueue<REAL>::Item* q;
-	Tree* t;
-	Tree* t2;
-	TreeEdge* e;
-	int i, j, k, N = 0, E = 0;
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		t->id = N;
-		N += 2;
-		for (k=0; k<2; k++)
-		for (e=t->first[k]; e; e=e->next[k]) E += 6;
-	}
-	DualMinCost<REAL>* m = new DualMinCost<REAL>(N, E);
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		i = t->id;
-		m->AddUnaryTerm(i, -1);
-		m->SetLowerBound(i, 0);
-		m->AddUnaryTerm(i+1, 1);
-		m->SetUpperBound(i+1, 0);
-
-		if (t->eps_delta < PM_INFTY)
-		{
-			m->SetUpperBound(i, t->eps_delta);
-			m->SetLowerBound(i+1, -t->eps_delta);
-		}
-		for (e=t->first[0]; e; e=e->next[0])
-		{
-			t2 = e->head[0];
-			if (t2 == NULL) continue;
-			j = e->head[0]->id;
-			if ((q=e->pq01[0].GetMin()))
-			{
-				m->AddConstraint(j, i, q->slack - t->eps + t2->eps);
-				m->AddConstraint(i+1, j+1, q->slack - t->eps + t2->eps);
-			}
-			if ((q=e->pq01[1].GetMin()))
-			{
-				m->AddConstraint(i, j, q->slack - t2->eps + t->eps);
-				m->AddConstraint(j+1, i+1, q->slack - t2->eps + t->eps);
-			}
-			if ((q=e->pq00.GetMin()))
-			{
-				m->AddConstraint(i+1, j, q->slack - t->eps - t2->eps);
-				m->AddConstraint(j+1, i, q->slack - t->eps - t2->eps);
-			}
-		}
-	}
-	m->Solve();
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		i = t->id;
-		t->eps_delta = (m->GetSolution(i) - m->GetSolution(i+1))/2;
-	}
-	delete m;
-}
-
+template class MinCost<int,int>;template class MinCost<int,double>;template class DualMinCost<int>;template class DualMinCost<double>;void PerfectMatching::ComputeEpsGlobal()
+{Node*r;PriorityQueue<REAL>::Item*q;Tree*t;Tree*t2;TreeEdge*e;int i,j,k,N=0,E=0;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;t->id=N;N+=2;for(k=0;k<2;k++)
+for(e=t->first[k];e;e=e->next[k])E+=6;}
+DualMinCost<REAL>*m=new DualMinCost<REAL>(N,E);for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;i=t->id;m->AddUnaryTerm(i,-1);m->SetLowerBound(i,0);m->AddUnaryTerm(i+1,1);m->SetUpperBound(i+1,0);if(t->eps_delta<PM_INFTY)
+{m->SetUpperBound(i,t->eps_delta);m->SetLowerBound(i+1,-t->eps_delta);}
+for(e=t->first[0];e;e=e->next[0])
+{t2=e->head[0];if(t2==NULL)continue;j=e->head[0]->id;if((q=e->pq01[0].GetMin()))
+{m->AddConstraint(j,i,q->slack-t->eps+t2->eps);m->AddConstraint(i+1,j+1,q->slack-t->eps+t2->eps);}
+if((q=e->pq01[1].GetMin()))
+{m->AddConstraint(i,j,q->slack-t2->eps+t->eps);m->AddConstraint(j+1,i+1,q->slack-t2->eps+t->eps);}
+if((q=e->pq00.GetMin()))
+{m->AddConstraint(i+1,j,q->slack-t->eps-t2->eps);m->AddConstraint(j+1,i,q->slack-t->eps-t2->eps);}}}
+m->Solve();for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;i=t->id;t->eps_delta=(m->GetSolution(i)-m->GetSolution(i+1))/2;}
+delete m;}
 void PerfectMatching::ComputeEpsSingle()
-{
-	Node* r;
-	PriorityQueue<REAL>::Item* q;
-	Tree* t;
-	Tree* t2;
-	TreeEdge* e;
-	REAL eps = PM_INFTY;
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		if (eps > t->eps_delta) eps = t->eps_delta;
-		for (e=t->first[0]; e; e=e->next[0])
-		{
-			t2 = e->head[0];
-			if ((q=e->pq00.GetMin()) && 2*eps > q->slack-t->eps-t2->eps)
-			{
-				eps = (q->slack-t->eps-t2->eps)/2;
-			}
-		}
-	}
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		r->tree->eps_delta = eps;
-	}
-}
-
-
+{Node*r;PriorityQueue<REAL>::Item*q;Tree*t;Tree*t2;TreeEdge*e;REAL eps=PM_INFTY;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;if(eps>t->eps_delta)eps=t->eps_delta;for(e=t->first[0];e;e=e->next[0])
+{t2=e->head[0];if((q=e->pq00.GetMin())&&2*eps>q->slack-t->eps-t2->eps)
+{eps=(q->slack-t->eps-t2->eps)/2;}}}
+for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{r->tree->eps_delta=eps;}}
 void PerfectMatching::ComputeEpsCC()
-{
-	Node* r;
-	PriorityQueue<REAL>::Item* q;
-	Tree* t0;
-	Tree* t;
-	Tree* t2;
-	Tree* t_next;
-	TreeEdge* e;
-	REAL eps, eps2;
-	Tree* queue_last;
-	int dir;
-	Tree* FIXED_TREE = trees-1;
-	int component_num = 0;
-	TreeEdge** e_ptr;
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t0 = r->tree;
-		t0->next = NULL;
-	}
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t0 = r->tree;
-		if (t0->next) continue;
-		eps = t0->eps_delta;
-
-		t0->next = queue_last = t = t0;
-		while ( 1 )
-		{
-			for (dir=0; dir<2; dir++)
-			for (e_ptr=&t->first[dir], e=*e_ptr; e; e=*e_ptr)
-			{
-				t2 = e->head[dir];
-				if (t2 == NULL) { *e_ptr = e->next[dir]; tree_edges->Delete(e); continue; }
-				e_ptr = &e->next[dir];
-
-				REAL eps00 = ((q=e->pq00.GetMin())) ? (q->slack - t->eps - t2->eps) : PM_INFTY;
-				if (t2->next && t2->next != FIXED_TREE)
-				{
-					if (2*eps > eps00) eps = eps00/2;
-					continue;
-				}
-
-				REAL eps01[2];
-				eps01[dir]   = ((q=e->pq01[dir].GetMin()))   ? (q->slack - t->eps + t2->eps) : PM_INFTY;
-				eps01[1-dir] = ((q=e->pq01[1-dir].GetMin())) ? (q->slack - t2->eps + t->eps) : PM_INFTY;
-
-				if (t2->next == FIXED_TREE) eps2 = t2->eps_delta;
-				else if (eps01[0] > 0 && eps01[1] > 0) eps2 = 0;
-				else
-				{
-					queue_last->next = t2;
-					queue_last = t2;
-					t2->next = t2;
-					if (eps > eps00) eps = eps00;
-					if (eps > t2->eps_delta) eps = t2->eps_delta;
-					continue;
-				}
-				if (eps > eps00 - eps2)      eps = eps00 - eps2;
-				if (eps > eps2 + eps01[dir]) eps = eps2 + eps01[dir];
-			}
-
-			if (t->next == t) break;
-			t = t->next;
-		}
-		for (t=t0; ; t=t_next)
-		{
-			t->eps_delta = eps;
-			t_next = t->next;
-			t->next = FIXED_TREE;
-			if (t_next == t) break;
-		}
-		component_num ++;
-	}
-	
-}
-
-
+{Node*r;PriorityQueue<REAL>::Item*q;Tree*t0;Tree*t;Tree*t2;Tree*t_next;TreeEdge*e;REAL eps,eps2;Tree*queue_last;int dir;Tree*FIXED_TREE=trees-1;int component_num=0;TreeEdge**e_ptr;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t0=r->tree;t0->next=NULL;}
+for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t0=r->tree;if(t0->next)continue;eps=t0->eps_delta;t0->next=queue_last=t=t0;while(1)
+{for(dir=0;dir<2;dir++)
+for(e_ptr=&t->first[dir],e=*e_ptr;e;e=*e_ptr)
+{t2=e->head[dir];if(t2==NULL){*e_ptr=e->next[dir];tree_edges->Delete(e);continue;}
+e_ptr=&e->next[dir];REAL eps00=((q=e->pq00.GetMin()))?(q->slack-t->eps-t2->eps):PM_INFTY;if(t2->next&&t2->next!=FIXED_TREE)
+{if(2*eps>eps00)eps=eps00/2;continue;}
+REAL eps01[2];eps01[dir]=((q=e->pq01[dir].GetMin()))?(q->slack-t->eps+t2->eps):PM_INFTY;eps01[1-dir]=((q=e->pq01[1-dir].GetMin()))?(q->slack-t2->eps+t->eps):PM_INFTY;if(t2->next==FIXED_TREE)eps2=t2->eps_delta;else if(eps01[0]>0&&eps01[1]>0)eps2=0;else
+{queue_last->next=t2;queue_last=t2;t2->next=t2;if(eps>eps00)eps=eps00;if(eps>t2->eps_delta)eps=t2->eps_delta;continue;}
+if(eps>eps00-eps2)eps=eps00-eps2;if(eps>eps2+eps01[dir])eps=eps2+eps01[dir];}
+if(t->next==t)break;t=t->next;}
+for(t=t0;;t=t_next)
+{t->eps_delta=eps;t_next=t->next;t->next=FIXED_TREE;if(t_next==t)break;}
+component_num++;}}
 void PerfectMatching::ComputeEpsSCC()
-{
-	PriorityQueue<REAL>::Item* q;
-	Node* r;
-	Tree* t0;
-	Tree* t;
-	Tree* t2;
-	TreeEdge* e;
-	TreeEdge** e_ptr;
-	REAL eps;
-	int c, dir;
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t0 = r->tree;
-		t0->dfs_parent = NULL;
-
-		for (dir=0; dir<2; dir++)
-		for (e_ptr=&t0->first[dir], e=*e_ptr; e; e=*e_ptr)
-		{
-			t2 = e->head[dir];
-			if (t2 == NULL) { *e_ptr = e->next[dir]; tree_edges->Delete(e); continue; }
-			e_ptr = &e->next[dir];
-		}
-	}
-	Tree* stack = NULL;
-
-	
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t0 = r->tree;
-		if (t0->dfs_parent) continue;
-		t = t0;
-		e = (t->first[0]) ? t->first[0] : t->first[1];
-		t->dfs_parent = (TreeEdge*)trees;
-		while ( 1 )
-		{
-			if (e == NULL)
-			{
-				t->next = stack;
-				stack = t;
-
-				if (t == t0) break;
-
-				e = t->dfs_parent;
-				if (t == e->head[0]) { t = e->head[1]; e = (e->next[0]) ? e->next[0] : t->first[1]; }
-				else                 { t = e->head[0]; e = e->next[1]; }
-				continue;
-			}
-
-			if (e->head[1] == t)
-			{
-				if (e->head[0]->dfs_parent || !(q=e->pq01[0].GetMin()) || q->slack - t->eps + e->head[0]->eps > 0) { e = (e->next[0]) ? e->next[0] : t->first[1]; continue; }
-				t = e->head[0];
-			}
-			else
-			{
-				if (e->head[1]->dfs_parent || !(q=e->pq01[1].GetMin()) || q->slack - t->eps + e->head[1]->eps > 0) { e = e->next[1]; continue; }
-				t = e->head[1];
-			}
-			t->dfs_parent = e;
-			e = (t->first[0]) ? t->first[0] : t->first[1];
-		}
-	}
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next) r->tree->dfs_parent = NULL;
-
-	int component_num = 0;
-	while (stack)
-	{
-		t0 = stack;
-		stack = t0->next;
-		if (t0->dfs_parent) continue;
-		t = t0;
-		e = (t->first[0]) ? t->first[0] : t->first[1];
-		t->dfs_parent = (TreeEdge*)trees;
-		while ( 1 )
-		{
-			if (e == NULL)
-			{
-				e = t->dfs_parent;
-				t->dfs_parent = (TreeEdge*)((char*)trees + component_num);
-				if (t == t0) break;
-				if (t == e->head[0]) { t = e->head[1]; e = (e->next[0]) ? e->next[0] : t->first[1]; }
-				else                 { t = e->head[0]; e = e->next[1]; }
-				continue;
-			}
-
-			if (e->head[1] == t)
-			{
-				if (e->head[0]->dfs_parent || !(q=e->pq01[1].GetMin()) || q->slack - e->head[0]->eps + t->eps > 0) { e = (e->next[0]) ? e->next[0] : t->first[1]; continue; }
-				t = e->head[0];
-			}
-			else
-			{
-				if (e->head[1]->dfs_parent || !(q=e->pq01[0].GetMin()) || q->slack - e->head[1]->eps + t->eps > 0) { e = e->next[1]; continue; }
-				t = e->head[1];
-			}
-			t->dfs_parent = e;
-			e = (t->first[0]) ? t->first[0] : t->first[1];
-		}
-		component_num ++;
-	}
-
-	Tree** array = new Tree*[component_num];
-	memset(array, 0, component_num*sizeof(Tree*));
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		t->id = (int)((char*)t->dfs_parent - (char*)trees);
-		t->next = array[t->id];
-		array[t->id] = t;
-	}
-
-	for (c=component_num-1; c>=0; c--)
-	{
-		eps = PM_INFTY;
-		for (t=array[c]; t; t=t->next)
-		{
-			if (eps > t->eps_delta) eps = t->eps_delta;
-			FOR_ALL_TREE_EDGES(t, e, dir)
-			{
-				t2 = e->head[dir];
-				REAL eps00 = (q=e->pq00.GetMin()) ? (q->slack-t->eps-t2->eps) : PM_INFTY;
-				REAL eps01[2];
-				eps01[dir]   = ((q=e->pq01[dir].GetMin()))   ? (q->slack - t->eps + t2->eps) : PM_INFTY;
-				eps01[1-dir] = ((q=e->pq01[1-dir].GetMin())) ? (q->slack - t2->eps + t->eps) : PM_INFTY;
-				if (t2->id < c)
-				{
-					if (eps > eps01[dir]) eps = eps01[dir];
-					if (eps > eps00) eps = eps00;
-				}
-				else if (t2->id == c)
-				{
-					if (2*eps > eps00) eps = eps00 / 2;
-				}
-				else
-				{
-					if (eps > eps01[dir] + t2->eps_delta) eps = eps01[dir] + t2->eps_delta;
-					if (eps > eps00 - t2->eps_delta)  eps = eps00 - t2->eps_delta;
-				}
-			}
-		}
-		for (t=array[c]; t; t=t->next) t->eps_delta = eps;
-	}
-
-	delete [] array;
-	
-}
-
+{PriorityQueue<REAL>::Item*q;Node*r;Tree*t0;Tree*t;Tree*t2;TreeEdge*e;TreeEdge**e_ptr;REAL eps;int c,dir;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t0=r->tree;t0->dfs_parent=NULL;for(dir=0;dir<2;dir++)
+for(e_ptr=&t0->first[dir],e=*e_ptr;e;e=*e_ptr)
+{t2=e->head[dir];if(t2==NULL){*e_ptr=e->next[dir];tree_edges->Delete(e);continue;}
+e_ptr=&e->next[dir];}}
+Tree*stack=NULL;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t0=r->tree;if(t0->dfs_parent)continue;t=t0;e=(t->first[0])?t->first[0]:t->first[1];t->dfs_parent=(TreeEdge*)trees;while(1)
+{if(e==NULL)
+{t->next=stack;stack=t;if(t==t0)break;e=t->dfs_parent;if(t==e->head[0]){t=e->head[1];e=(e->next[0])?e->next[0]:t->first[1];}
+else{t=e->head[0];e=e->next[1];}
+continue;}
+if(e->head[1]==t)
+{if(e->head[0]->dfs_parent||!(q=e->pq01[0].GetMin())||q->slack-t->eps+e->head[0]->eps>0){e=(e->next[0])?e->next[0]:t->first[1];continue;}
+t=e->head[0];}
+else
+{if(e->head[1]->dfs_parent||!(q=e->pq01[1].GetMin())||q->slack-t->eps+e->head[1]->eps>0){e=e->next[1];continue;}
+t=e->head[1];}
+t->dfs_parent=e;e=(t->first[0])?t->first[0]:t->first[1];}}
+for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)r->tree->dfs_parent=NULL;int component_num=0;while(stack)
+{t0=stack;stack=t0->next;if(t0->dfs_parent)continue;t=t0;e=(t->first[0])?t->first[0]:t->first[1];t->dfs_parent=(TreeEdge*)trees;while(1)
+{if(e==NULL)
+{e=t->dfs_parent;t->dfs_parent=(TreeEdge*)((char*)trees+component_num);if(t==t0)break;if(t==e->head[0]){t=e->head[1];e=(e->next[0])?e->next[0]:t->first[1];}
+else{t=e->head[0];e=e->next[1];}
+continue;}
+if(e->head[1]==t)
+{if(e->head[0]->dfs_parent||!(q=e->pq01[1].GetMin())||q->slack-e->head[0]->eps+t->eps>0){e=(e->next[0])?e->next[0]:t->first[1];continue;}
+t=e->head[0];}
+else
+{if(e->head[1]->dfs_parent||!(q=e->pq01[0].GetMin())||q->slack-e->head[1]->eps+t->eps>0){e=e->next[1];continue;}
+t=e->head[1];}
+t->dfs_parent=e;e=(t->first[0])?t->first[0]:t->first[1];}
+component_num++;}
+Tree**array=new Tree*[component_num];memset(array,0,component_num*sizeof(Tree*));for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;t->id=(int)((char*)t->dfs_parent-(char*)trees);t->next=array[t->id];array[t->id]=t;}
+for(c=component_num-1;c>=0;c--)
+{eps=PM_INFTY;for(t=array[c];t;t=t->next)
+{if(eps>t->eps_delta)eps=t->eps_delta;FOR_ALL_TREE_EDGES(t,e,dir)
+{t2=e->head[dir];REAL eps00=(q=e->pq00.GetMin())?(q->slack-t->eps-t2->eps):PM_INFTY;REAL eps01[2];eps01[dir]=((q=e->pq01[dir].GetMin()))?(q->slack-t->eps+t2->eps):PM_INFTY;eps01[1-dir]=((q=e->pq01[1-dir].GetMin()))?(q->slack-t2->eps+t->eps):PM_INFTY;if(t2->id<c)
+{if(eps>eps01[dir])eps=eps01[dir];if(eps>eps00)eps=eps00;}
+else if(t2->id==c)
+{if(2*eps>eps00)eps=eps00/2;}
+else
+{if(eps>eps01[dir]+t2->eps_delta)eps=eps01[dir]+t2->eps_delta;if(eps>eps00-t2->eps_delta)eps=eps00-t2->eps_delta;}}}
+for(t=array[c];t;t=t->next)t->eps_delta=eps;}
+delete[]array;}
 void PerfectMatching::CommitEps()
-{
-	printf("CommitEps()\n");
-	Node* i;
-	Node* j;
-	Node* r;
-	int dir;
-	Edge* a;
-	EdgeIterator I;
-	Tree* t;
-	TreeEdge* e;
-	TreeEdge** e_ptr;
-	REAL eps, eps2;
-	PriorityQueue<REAL>::Item* q;
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		t = r->tree;
-		eps = t->eps;
-
-		i = r;
-		while ( 1 )
-		{
-			i->y += eps;
-			if (!i->is_tree_root)
-			{
-				Node* i0 = i;
-				i = ARC_HEAD(i0->match);
-				if (i->is_blossom) ARC_TO_EDGE_PTR(i0->match)->slack -= eps;
-				else               i->y                              -= eps;
-				FOR_ALL_EDGES(i, a, dir, I)
-				{
-					GET_OUTER_HEAD(a, dir, j);
-
-					a->slack += eps;
-					if (j->flag == 0) a->slack -= j->tree->eps;
-				}
-				i = i0;
-			}
-
-			MOVE_NODE_IN_TREE(i);
-		}
-
-		t->pq0.Update(-eps);
-
-		PriorityQueue<REAL> pq00 = t->pq00;
-		t->pq00.Reset();
-		for (q=pq00.GetAndResetFirst(); q; q=pq00.GetAndResetNext())
-		{
-			a = (Edge*)q;
-			if (ProcessEdge00(a)) t->pq00.Add(a);
-		}
-
-		for (e_ptr=&t->first[0], e=*e_ptr; e; e=*e_ptr)
-		{
-			if (e->head[0] == NULL) { *e_ptr = e->next[0]; tree_edges->Delete(e); continue; }
-			e_ptr = &e->next[0];
-
-			eps2 = e->head[0]->eps;
-			e->pq00.Update( - eps - eps2 );
-		}
-	}
-
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next) r->tree->eps = 0;
-}
-
+{printf("CommitEps()\n");Node*i;Node*j;Node*r;int dir;Edge*a;EdgeIterator I;Tree*t;TreeEdge*e;TreeEdge**e_ptr;REAL eps,eps2;PriorityQueue<REAL>::Item*q;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;eps=t->eps;i=r;while(1)
+{i->y+=eps;if(!i->is_tree_root)
+{Node*i0=i;i=ARC_HEAD(i0->match);if(i->is_blossom)ARC_TO_EDGE_PTR(i0->match)->slack-=eps;else i->y-=eps;FOR_ALL_EDGES(i,a,dir,I)
+{GET_OUTER_HEAD(a,dir,j);a->slack+=eps;if(j->flag==0)a->slack-=j->tree->eps;}
+i=i0;}
+MOVE_NODE_IN_TREE(i);}
+t->pq0.Update(-eps);PriorityQueue<REAL>pq00=t->pq00;t->pq00.Reset();for(q=pq00.GetAndResetFirst();q;q=pq00.GetAndResetNext())
+{a=(Edge*)q;if(ProcessEdge00(a))t->pq00.Add(a);}
+for(e_ptr=&t->first[0],e=*e_ptr;e;e=*e_ptr)
+{if(e->head[0]==NULL){*e_ptr=e->next[0];tree_edges->Delete(e);continue;}
+e_ptr=&e->next[0];eps2=e->head[0]->eps;e->pq00.Update(-eps-eps2);}}
+for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)r->tree->eps=0;}
 bool PerfectMatching::UpdateDuals()
-{
-	Node* r;
-
-	double start_time = get_time();
-
-	
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		Tree* t = r->tree;
-		PriorityQueue<REAL>::Item* q;
-		REAL eps = PM_INFTY;
-		if ((q=t->pq0.GetMin())) eps = q->slack;
-		if ((q=t->pq_blossoms.GetMin()) && eps > q->slack) eps = q->slack;
-		while ((q=t->pq00.GetMin()))
-		{
-			if (ProcessEdge00((Edge*)q, false)) break;
-			t->pq00.Remove(q, pq_buf);
-		}
-		if (q && 2*eps > q->slack) eps = q->slack/2;
-		t->eps_delta = eps - t->eps;
-	}
-
-	if (tree_num >= options.dual_LP_threshold*node_num)
-	{
-		if      (options.dual_greedy_update_option == 0) ComputeEpsCC();
-		else if (options.dual_greedy_update_option == 1) ComputeEpsSCC();
-		else                                             ComputeEpsSingle();
-	}
-	else ComputeEpsGlobal();
-
-	REAL delta = 0;
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		if (r->tree->eps_delta > 0)
-		{
-			delta += r->tree->eps_delta;
-			r->tree->eps += r->tree->eps_delta;
-		}
-	}
-
-	stat.dual_time += get_time() - start_time;
-
-	return (delta > PM_THRESHOLD);
-}
-
-inline void PerfectMatching::ProcessSelfloop(Node* b, Edge* a)
-{
-	int dir;
-	Node* j;
-	Node* prev[2];
-	for (dir=0; dir<2; dir++)
-	{
-		j = a->head[dir];
-		GET_PENULTIMATE_BLOSSOM(j);
-		prev[dir] = j;
-	}
-	if (prev[0] != prev[1])
-	{
-		ADD_EDGE(prev[0], a, 1);
-		ADD_EDGE(prev[1], a, 0);
-		a->slack -= 2*prev[0]->blossom_eps;
-	}
-	else
-	{
-		a->next[0] = prev[0]->blossom_selfloops;
-		prev[0]->blossom_selfloops = a;
-	}
-
-}
-
-
-
-void PerfectMatching::Expand(Node* b)
-{
-	assert(b->is_blossom);
-	assert(b->is_outer);
-	assert(b->flag == 1);
-
-	double start_time = get_time();
-
-	Node* i;
-	Node* j;
-	Node* k;
-	Edge* a;
-	EdgeIterator I;
-	int dir;
-	ExpandTmpItem* tmp_item;
-	Tree* t = b->tree;
-	REAL eps = t->eps;
-	Edge* a_augment = NULL;
-
-	GET_TREE_PARENT(b, i);
-	a = ARC_TO_EDGE_PTR(b->tree_parent);
-	dir = ARC_TO_EDGE_DIR(b->tree_parent);
-
-	j = a->head0[1-dir];
-	GET_PENULTIMATE_BLOSSOM(j);
-	MOVE_EDGE(b, j, a, dir);
-
-	a = ARC_TO_EDGE_PTR(b->match);
-	dir = ARC_TO_EDGE_DIR(b->match);
-	k = a->head0[1-dir];
-	GET_PENULTIMATE_BLOSSOM(k);
-	MOVE_EDGE(b, k, a, dir);
-
-	i = ARC_HEAD(k->blossom_sibling);
-	while ( 1 )
-	{
-		tmp_item = expand_tmp_list->New();
-		tmp_item->i = i; tmp_item->blossom_parent = i->blossom_parent; tmp_item->blossom_grandparent = i->blossom_grandparent;
-		i->flag = 2;
-
-		
-		i->is_outer = 1;
-		while ((a=i->blossom_selfloops))
-		{
-			i->blossom_selfloops = a->next[0];
-			ProcessSelfloop(i, a);
-		}
-		i->is_outer = 0;
-
-		if (i == k) break;
-		i->match = i->blossom_sibling;
-		j = ARC_HEAD(i->match);
-		tmp_item = expand_tmp_list->New();
-		tmp_item->i = j; tmp_item->blossom_parent = j->blossom_parent; tmp_item->blossom_grandparent = j->blossom_grandparent;
-		j->flag = 2;
-
-		
-		j->is_outer = 1;
-		while ((a=j->blossom_selfloops))
-		{
-			j->blossom_selfloops = a->next[0];
-			ProcessSelfloop(j, a);
-		}
-		j->is_outer = 0;
-
-		j->match = ARC_REV(i->match);
-		i = ARC_HEAD(j->blossom_sibling);
-	}
-	k->match = b->match;
-	i = ARC_TAIL(b->tree_parent);
-	Arc* aa = i->blossom_sibling;
-	i->flag = 1; i->tree = b->tree; i->y += b->tree->eps;
-	i->tree_parent = b->tree_parent;
-	if (i != k)
-	{
-		Node** i_ptr;
-		if (i->match == aa)
-		{
-			i = ARC_HEAD(i->match);
-			i_ptr = &j;
-			while ( 1 )
-			{
-				aa = i->blossom_sibling;
-				i->flag = 0; i->tree = b->tree; i->y -= t->eps;
-				*i_ptr = i;
-				i_ptr = &i->first_tree_child;
-				i->tree_sibling_prev = i;
-				i->tree_sibling_next = NULL;
-				i = ARC_HEAD(aa);
-				i->flag = 1; i->tree = b->tree; i->y += t->eps;
-				i->tree_parent = ARC_REV(aa);
-				if (i == k) break;
-				i = ARC_HEAD(i->match);
-			}
-			*i_ptr = ARC_HEAD(k->match);
-		}
-		else
-		{
-			i = k;
-			j = ARC_HEAD(k->match);
-			do
-			{
-				i->tree_parent = i->blossom_sibling;
-				i->flag = 1; i->tree = b->tree; i->y += b->tree->eps;
-				i = ARC_HEAD(i->tree_parent);
-				i->flag = 0; i->tree = b->tree; i->y -= b->tree->eps;
-				i->first_tree_child = j;
-				j = i;
-				i->tree_sibling_prev = i;
-				i->tree_sibling_next = NULL;
-				i = ARC_HEAD(i->match);
-			} while ( i->flag != 1 );
-		}
-		i = ARC_HEAD(k->match);
-
-		j->tree_sibling_prev = i->tree_sibling_prev;
-		j->tree_sibling_next = i->tree_sibling_next;
-		if (i->tree_sibling_prev->tree_sibling_next) i->tree_sibling_prev->tree_sibling_next = j;
-		else ARC_HEAD(b->tree_parent)->first_tree_child = j;
-		if (i->tree_sibling_next) i->tree_sibling_next->tree_sibling_prev = j;
-		else ARC_HEAD(b->tree_parent)->first_tree_child->tree_sibling_prev = j;
-
-		i->tree_sibling_prev = i;
-		i->tree_sibling_next = NULL;
-	}
-
-	
-	i = k;
-	while ( 1 )
-	{
-		
-		if (i->is_blossom)
-		{
-			a = ARC_TO_EDGE_PTR(i->match);
-			REAL tmp = a->slack; a->slack = i->y; i->y = tmp;
-			t->pq_blossoms.Add(a);
-		}
-		FOR_ALL_EDGES(i, a, dir, I)
-		{
-			j = a->head[dir];
-			if (j->flag != 0) a->slack -= eps;
-		}
-		i->is_processed = 1;
-		if (i->tree_parent == b->tree_parent) break;
-		i = ARC_HEAD(i->tree_parent);
-		
-		FOR_ALL_EDGES(i, a, dir, I)
-		{
-			j = a->head[dir];
-			if (j->flag == 2)
-			{
-				a->slack += eps;
-				t->pq0.Add(a);
-			}
-			else if (j->flag == 0 && i < j)
-			{
-				a->slack += 2*eps;
-				t->pq00.Add(a);
-			}
-		}
-		i->is_processed = 1;
-		i = ARC_HEAD(i->match);
-	}
-
-	
-	for (tmp_item=expand_tmp_list->ScanFirst(); tmp_item; tmp_item=expand_tmp_list->ScanNext())
-	{
-		i = tmp_item->i;
-		j = tmp_item->blossom_parent; tmp_item->blossom_parent = i->blossom_parent; i->blossom_parent = j;
-		j = tmp_item->blossom_grandparent; tmp_item->blossom_grandparent = i->blossom_grandparent; i->blossom_grandparent = j;
-	}
-	for (dir=0; dir<2; dir++)
-	{
-		if (!b->first[dir]) continue;
-		b->first[dir]->prev[dir]->next[dir] = NULL;
-
-		Edge* a_next;
-		for (a=b->first[dir]; a; a=a_next)
-		{
-			a_next = a->next[dir];
-			i = a->head0[1-dir];
-			GET_PENULTIMATE_BLOSSOM2(i);
-			ADD_EDGE(i, a, dir);
-			GET_OUTER_HEAD(a, dir, j);
-
-			if (i->flag == 1) continue;
-
-			if (j->flag == 0 && j->tree != t) j->tree->pq_current->pq01[1-j->tree->dir_current].Remove(a, pq_buf);
-
-			if (i->flag == 2)
-			{
-				a->slack += eps;
-				if (j->flag == 0) j->tree->pq0.Add(a);
-			}
-			else
-			{
-				a->slack += 2*eps;
-				if      (j->flag == 2) t->pq0.Add(a);
-				else if (j->flag == 0)
-				{
-					if (j->tree != t)
-					{
-						if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-						if (a->slack <= j->tree->eps + eps) a_augment = a;
-					}
-					j->tree->pq_current->pq00.Add(a);
-				}
-				else if (j->tree != t)
-				{
-					if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-					j->tree->pq_current->pq01[j->tree->dir_current].Add(a); 
-				}
-					
-			}
-		}
-	}
-	for (tmp_item=expand_tmp_list->ScanFirst(); tmp_item; tmp_item=expand_tmp_list->ScanNext())
-	{
-		i = tmp_item->i;
-		i->blossom_parent = tmp_item->blossom_parent;
-		i->blossom_grandparent = tmp_item->blossom_grandparent;
-		i->is_outer = 1;
-	}
-	expand_tmp_list->Reset();
-
-	b->is_removed = 1;
-	b->tree_sibling_next = removed_first;
-	removed_first = b;
-	removed_num ++;
-	if (4*removed_num > node_num) FreeRemoved();
-
-	blossom_num --;
-	stat.expand_count ++;
-
-	stat.expand_time += get_time() - start_time;
-
-	if (a_augment) Augment(a_augment);
-}
-
+{Node*r;double start_time=get_time();for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{Tree*t=r->tree;PriorityQueue<REAL>::Item*q;REAL eps=PM_INFTY;if((q=t->pq0.GetMin()))eps=q->slack;if((q=t->pq_blossoms.GetMin())&&eps>q->slack)eps=q->slack;while((q=t->pq00.GetMin()))
+{if(ProcessEdge00((Edge*)q,false))break;t->pq00.Remove(q,pq_buf);}
+if(q&&2*eps>q->slack)eps=q->slack/2;t->eps_delta=eps-t->eps;}
+if(tree_num>=options.dual_LP_threshold*node_num)
+{if(options.dual_greedy_update_option==0)ComputeEpsCC();else if(options.dual_greedy_update_option==1)ComputeEpsSCC();else ComputeEpsSingle();}
+else ComputeEpsGlobal();REAL delta=0;for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{if(r->tree->eps_delta>0)
+{delta+=r->tree->eps_delta;r->tree->eps+=r->tree->eps_delta;}}
+stat.dual_time+=get_time()-start_time;return(delta>PM_THRESHOLD);}
+inline void PerfectMatching::ProcessSelfloop(Node*b,Edge*a)
+{int dir;Node*j;Node*prev[2];for(dir=0;dir<2;dir++)
+{j=a->head[dir];GET_PENULTIMATE_BLOSSOM(j);prev[dir]=j;}
+if(prev[0]!=prev[1])
+{ADD_EDGE(prev[0],a,1);ADD_EDGE(prev[1],a,0);a->slack-=2*prev[0]->blossom_eps;}
+else
+{a->next[0]=prev[0]->blossom_selfloops;prev[0]->blossom_selfloops=a;}}
+void PerfectMatching::Expand(Node*b)
+{assert(b->is_blossom);assert(b->is_outer);assert(b->flag==1);double start_time=get_time();Node*i;Node*j;Node*k;Edge*a;EdgeIterator I;int dir;ExpandTmpItem*tmp_item;Tree*t=b->tree;REAL eps=t->eps;Edge*a_augment=NULL;GET_TREE_PARENT(b,i);a=ARC_TO_EDGE_PTR(b->tree_parent);dir=ARC_TO_EDGE_DIR(b->tree_parent);j=a->head0[1-dir];GET_PENULTIMATE_BLOSSOM(j);MOVE_EDGE(b,j,a,dir);a=ARC_TO_EDGE_PTR(b->match);dir=ARC_TO_EDGE_DIR(b->match);k=a->head0[1-dir];GET_PENULTIMATE_BLOSSOM(k);MOVE_EDGE(b,k,a,dir);i=ARC_HEAD(k->blossom_sibling);while(1)
+{tmp_item=expand_tmp_list->New();tmp_item->i=i;tmp_item->blossom_parent=i->blossom_parent;tmp_item->blossom_grandparent=i->blossom_grandparent;i->flag=2;i->is_outer=1;while((a=i->blossom_selfloops))
+{i->blossom_selfloops=a->next[0];ProcessSelfloop(i,a);}
+i->is_outer=0;if(i==k)break;i->match=i->blossom_sibling;j=ARC_HEAD(i->match);tmp_item=expand_tmp_list->New();tmp_item->i=j;tmp_item->blossom_parent=j->blossom_parent;tmp_item->blossom_grandparent=j->blossom_grandparent;j->flag=2;j->is_outer=1;while((a=j->blossom_selfloops))
+{j->blossom_selfloops=a->next[0];ProcessSelfloop(j,a);}
+j->is_outer=0;j->match=ARC_REV(i->match);i=ARC_HEAD(j->blossom_sibling);}
+k->match=b->match;i=ARC_TAIL(b->tree_parent);Arc*aa=i->blossom_sibling;i->flag=1;i->tree=b->tree;i->y+=b->tree->eps;i->tree_parent=b->tree_parent;if(i!=k)
+{Node**i_ptr;if(i->match==aa)
+{i=ARC_HEAD(i->match);i_ptr=&j;while(1)
+{aa=i->blossom_sibling;i->flag=0;i->tree=b->tree;i->y-=t->eps;*i_ptr=i;i_ptr=&i->first_tree_child;i->tree_sibling_prev=i;i->tree_sibling_next=NULL;i=ARC_HEAD(aa);i->flag=1;i->tree=b->tree;i->y+=t->eps;i->tree_parent=ARC_REV(aa);if(i==k)break;i=ARC_HEAD(i->match);}*i_ptr=ARC_HEAD(k->match);}
+else
+{i=k;j=ARC_HEAD(k->match);do
+{i->tree_parent=i->blossom_sibling;i->flag=1;i->tree=b->tree;i->y+=b->tree->eps;i=ARC_HEAD(i->tree_parent);i->flag=0;i->tree=b->tree;i->y-=b->tree->eps;i->first_tree_child=j;j=i;i->tree_sibling_prev=i;i->tree_sibling_next=NULL;i=ARC_HEAD(i->match);}while(i->flag!=1);}
+i=ARC_HEAD(k->match);j->tree_sibling_prev=i->tree_sibling_prev;j->tree_sibling_next=i->tree_sibling_next;if(i->tree_sibling_prev->tree_sibling_next)i->tree_sibling_prev->tree_sibling_next=j;else ARC_HEAD(b->tree_parent)->first_tree_child=j;if(i->tree_sibling_next)i->tree_sibling_next->tree_sibling_prev=j;else ARC_HEAD(b->tree_parent)->first_tree_child->tree_sibling_prev=j;i->tree_sibling_prev=i;i->tree_sibling_next=NULL;}
+i=k;while(1)
+{if(i->is_blossom)
+{a=ARC_TO_EDGE_PTR(i->match);REAL tmp=a->slack;a->slack=i->y;i->y=tmp;t->pq_blossoms.Add(a);}
+FOR_ALL_EDGES(i,a,dir,I)
+{j=a->head[dir];if(j->flag!=0)a->slack-=eps;}
+i->is_processed=1;if(i->tree_parent==b->tree_parent)break;i=ARC_HEAD(i->tree_parent);FOR_ALL_EDGES(i,a,dir,I)
+{j=a->head[dir];if(j->flag==2)
+{a->slack+=eps;t->pq0.Add(a);}
+else if(j->flag==0&&i<j)
+{a->slack+=2*eps;t->pq00.Add(a);}}
+i->is_processed=1;i=ARC_HEAD(i->match);}
+for(tmp_item=expand_tmp_list->ScanFirst();tmp_item;tmp_item=expand_tmp_list->ScanNext())
+{i=tmp_item->i;j=tmp_item->blossom_parent;tmp_item->blossom_parent=i->blossom_parent;i->blossom_parent=j;j=tmp_item->blossom_grandparent;tmp_item->blossom_grandparent=i->blossom_grandparent;i->blossom_grandparent=j;}
+for(dir=0;dir<2;dir++)
+{if(!b->first[dir])continue;b->first[dir]->prev[dir]->next[dir]=NULL;Edge*a_next;for(a=b->first[dir];a;a=a_next)
+{a_next=a->next[dir];i=a->head0[1-dir];GET_PENULTIMATE_BLOSSOM2(i);ADD_EDGE(i,a,dir);GET_OUTER_HEAD(a,dir,j);if(i->flag==1)continue;if(j->flag==0&&j->tree!=t)j->tree->pq_current->pq01[1-j->tree->dir_current].Remove(a,pq_buf);if(i->flag==2)
+{a->slack+=eps;if(j->flag==0)j->tree->pq0.Add(a);}
+else
+{a->slack+=2*eps;if(j->flag==2)t->pq0.Add(a);else if(j->flag==0)
+{if(j->tree!=t)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);if(a->slack<=j->tree->eps+eps)a_augment=a;}
+j->tree->pq_current->pq00.Add(a);}
+else if(j->tree!=t)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq01[j->tree->dir_current].Add(a);}}}}
+for(tmp_item=expand_tmp_list->ScanFirst();tmp_item;tmp_item=expand_tmp_list->ScanNext())
+{i=tmp_item->i;i->blossom_parent=tmp_item->blossom_parent;i->blossom_grandparent=tmp_item->blossom_grandparent;i->is_outer=1;}
+expand_tmp_list->Reset();b->is_removed=1;b->tree_sibling_next=removed_first;removed_first=b;removed_num++;if(4*removed_num>node_num)FreeRemoved();blossom_num--;stat.expand_count++;stat.expand_time+=get_time()-start_time;if(a_augment)Augment(a_augment);}
 void PerfectMatching::FreeRemoved()
-{
-	Node* i0;
-	Node* i;
-	for (i0=nodes; i0<nodes+node_num; i0++)
-	{
-		for (i=i0; !i->is_outer && !i->is_marked; i=i->blossom_parent)
-		{
-			i->is_marked = 1;
-			if (i->blossom_grandparent->is_removed) i->blossom_grandparent = i->blossom_parent;
-		}
-	}
-	for (i0=nodes; i0<nodes+node_num; i0++)
-	{
-		for (i=i0; !i->is_outer && i->is_marked; i=i->blossom_parent)
-		{
-			i->is_marked = 0;
-		}
-	}
-
-	while ((i=removed_first))
-	{
-		removed_first = i->tree_sibling_next;
-		blossoms->Delete(i);
-		removed_num --;
-	}
-
-	assert(removed_num == 0);
-}
-
+{Node*i0;Node*i;for(i0=nodes;i0<nodes+node_num;i0++)
+{for(i=i0;!i->is_outer&&!i->is_marked;i=i->blossom_parent)
+{i->is_marked=1;if(i->blossom_grandparent->is_removed)i->blossom_grandparent=i->blossom_parent;}}
+for(i0=nodes;i0<nodes+node_num;i0++)
+{for(i=i0;!i->is_outer&&i->is_marked;i=i->blossom_parent)
+{i->is_marked=0;}}
+while((i=removed_first))
+{removed_first=i->tree_sibling_next;blossoms->Delete(i);removed_num--;}
+assert(removed_num==0);}
 void PerfectMatching::InitGreedy(bool allocate_trees)
-{
-	Node* i;
-	int dir;
-	Edge* a;
-	EdgeIterator I;
-	Tree* t = NULL;
-	Node* last_root = &nodes[node_num];
-	REAL slack_min;
-
-	for (i=nodes; i<nodes+node_num; i++) i->y = PM_INFTY;
-	for (a=edges; a<edges+edge_num; a++)
-	{
-		if (a->head[0]->y > a->slack) a->head[0]->y = a->slack;
-		if (a->head[1]->y > a->slack) a->head[1]->y = a->slack;
-	}
-	for (a=edges; a<edges+edge_num; a++)
-	{
-		i = a->head[0];
-		if (!i->is_outer)
-		{
-			i->is_outer = 1;
-			i->y /= 2;
-		}
-		a->slack -= i->y;
-		i = a->head[1];
-		if (!i->is_outer)
-		{
-			i->is_outer = 1;
-			i->y /= 2;
-		}
-		a->slack -= i->y;
-	}
-
-	tree_num = node_num;
-	for (i=nodes; i<nodes+node_num; i++)
-	{
-		if (i->flag == 2) continue;
-		slack_min = PM_INFTY;
-		FOR_ALL_EDGES(i, a, dir, I) if (slack_min > a->slack) slack_min = a->slack;
-		i->y += slack_min;
-		FOR_ALL_EDGES(i, a, dir, I)
-		{
-			if (a->slack <= slack_min && i->flag == 0 && a->head[dir]->flag == 0)
-			{
-				i->flag = 2;
-				a->head[dir]->flag = 2;
-				i->match = EDGE_DIR_TO_ARC(a, dir);
-				a->head[dir]->match = EDGE_DIR_TO_ARC(a, 1-dir);
-				tree_num -= 2;
-			}
-			a->slack -= slack_min;
-		}
-	}
-	if (allocate_trees)
-	{
-		if (tree_num > tree_num_max)
-		{
-			if (trees) free(trees);
-			tree_num_max = tree_num;
-			trees = (Tree*) malloc(tree_num_max*sizeof(Tree));
-		}
-		t = trees;
-	}
-	for (i=nodes; i<nodes+node_num; i++)
-	{
-		if (i->flag != 0) continue;
-		i->is_tree_root = 1;
-		i->first_tree_child = NULL;
-		i->tree_sibling_prev = last_root;
-		last_root->tree_sibling_next = i;
-		last_root = i;
-		if (allocate_trees)
-		{
-			i->tree = t;
-			t->root = i;
-			t->eps = 0;
-			t->first[0] = t->first[1] = NULL;
-			t->pq_current = NULL;
-			t->pq00.Reset();
-			t->pq0.Reset();
-			t->pq_blossoms.Reset();
-			t ++;
-		}
-	}
-	last_root->tree_sibling_next = NULL;
-}
-
-
-PerfectMatching::Node* PerfectMatching::FindBlossomRootInit(Edge* a0)
-{
-	Node* i;
-	Node* j;
-	Node* _i[2];
-	Node* r;
-	int branch;
-
-	_i[0] = ARC_HEAD(a0);
-	_i[1] = ARC_TAIL(a0);
-	branch = 0;
-	while ( 1 )
-	{
-		if (!_i[branch]->is_outer) 
-		{
-			r = _i[branch]; 
-			j = _i[1-branch];
-			break; 
-		}
-		_i[branch]->is_outer = 0;
-		if (_i[branch]->is_tree_root)
-		{
-			j = _i[branch];
-			i = _i[1-branch];
-			while (i->is_outer)
-			{
-				i->is_outer = 0;
-				i = ARC_HEAD(i->match);
-				i->is_outer = 0;
-				i = ARC_HEAD(i->tree_parent);
-			}
-			r = i;
-			break;
-		}
-		i = ARC_HEAD(_i[branch]->match);
-		i->is_outer = 0;
-		_i[branch] = ARC_HEAD(i->tree_parent);
-		branch = 1 - branch;
-	}
-	i = r;
-	while ( i != j )
-	{
-		i = ARC_HEAD(i->match);
-		i->is_outer = 1;
-		i = ARC_HEAD(i->tree_parent);
-		i->is_outer = 1;
-	}
-	return r;
-}
-
-void PerfectMatching::ShrinkInit(Edge* a0, Node* tree_root)
-{
-	int branch, flag;
-	Node* i;
-	Node* j;
-	Node* r;
-	Arc* a_prev;
-	Arc* aa;
-
-	tree_root->flag = 2;
-	i = tree_root->first_tree_child;
-	if ( i )
-	while ( 1 )
-	{
-		ARC_HEAD(i->match)->flag = 2;
-		i->flag = 2;
-
-		MOVE_NODE_IN_TREE(i);
-	}
-
-	r = FindBlossomRootInit(a0);
-
-	if ( !r->is_tree_root )
-	{
-		j = ARC_HEAD(r->match);
-		j->match = aa = j->tree_parent;
-		i = ARC_HEAD(aa);
-		while ( !i->is_tree_root )
-		{
-			j = ARC_HEAD(i->match);
-			i->match = ARC_REV(aa);
-			j->match = aa = j->tree_parent;
-			i = ARC_HEAD(aa);
-		}
-		i->match = ARC_REV(aa);
-	}
-
-	tree_root->is_tree_root = 0;
-
-	branch = 0;
-	flag = 0;
-	a_prev = EDGE_DIR_TO_ARC(a0, 0);
-	i = ARC_HEAD(a_prev);
-	while ( 1 )
-	{
-		Arc* a_next = (flag == 0) ? i->match : i->tree_parent;
-		flag = 1 - flag;
-		i->flag = 0;
-		i->match = NULL;
-		if (branch == 0)
-		{
-			i->blossom_sibling = a_next;
-			if (i == r)
-			{
-				branch = 1;
-				flag = 0;
-				a_prev = ARC_REV(a0);
-				i = ARC_HEAD(a_prev);
-				if (i == r) break;
-			}
-			else
-			{
-				a_prev = i->blossom_sibling;
-				i = ARC_HEAD(a_prev);
-			}
-		}
-		else
-		{
-			i->blossom_sibling = ARC_REV(a_prev);
-			a_prev = a_next;
-			i = ARC_HEAD(a_prev);
-			if (i == r) break;
-		}
-	}
-	i->blossom_sibling = ARC_REV(a_prev);
-}
-
-void PerfectMatching::ExpandInit(Node* k)
-{
-	Node* i = ARC_HEAD(k->blossom_sibling);
-	Node* j;
-
-	while ( 1 )
-	{
-		i->flag = 2; i->is_outer = 1;
-		if (i == k) break;
-		i->match = i->blossom_sibling;
-		j = ARC_HEAD(i->match);
-		j->flag = 2; j->is_outer = 1;
-		j->match = ARC_REV(i->match);
-		i = ARC_HEAD(j->blossom_sibling);
-	}
-}
-
-void PerfectMatching::AugmentBranchInit(Node* i0, Node* r)
-{
-	Node* tree_root_prev = r->tree_sibling_prev;
-	Node* i;
-	Node* j;
-	Arc* aa;
-
-	r->flag = 2;
-	i = r->first_tree_child;
-	if ( i )
-	while ( 1 )
-	{
-		ARC_HEAD(i->match)->flag = 2;
-		i->flag = 2;
-
-		MOVE_NODE_IN_TREE(i);
-	}
-	i = i0;
-	if ( !i0->is_tree_root )
-	{
-		j = ARC_HEAD(i0->match);
-		j->match = aa = j->tree_parent;
-		i = ARC_HEAD(aa);
-		while ( !i->is_tree_root )
-		{
-			j = ARC_HEAD(i->match);
-			i->match = ARC_REV(aa);
-			j->match = aa = j->tree_parent;
-			i = ARC_HEAD(aa);
-		}
-		i->match = ARC_REV(aa);
-	}
-	r->is_tree_root = 0;
-	tree_root_prev->tree_sibling_next = r->tree_sibling_next;
-	if (r->tree_sibling_next) r->tree_sibling_next->tree_sibling_prev = tree_root_prev;
-	tree_num --;
-}
-
-
-
-
+{Node*i;int dir;Edge*a;EdgeIterator I;Tree*t=NULL;Node*last_root=&nodes[node_num];REAL slack_min;for(i=nodes;i<nodes+node_num;i++)i->y=PM_INFTY;for(a=edges;a<edges+edge_num;a++)
+{if(a->head[0]->y>a->slack)a->head[0]->y=a->slack;if(a->head[1]->y>a->slack)a->head[1]->y=a->slack;}
+for(a=edges;a<edges+edge_num;a++)
+{i=a->head[0];if(!i->is_outer)
+{i->is_outer=1;i->y/=2;}
+a->slack-=i->y;i=a->head[1];if(!i->is_outer)
+{i->is_outer=1;i->y/=2;}
+a->slack-=i->y;}
+tree_num=node_num;for(i=nodes;i<nodes+node_num;i++)
+{if(i->flag==2)continue;slack_min=PM_INFTY;FOR_ALL_EDGES(i,a,dir,I)if(slack_min>a->slack)slack_min=a->slack;i->y+=slack_min;FOR_ALL_EDGES(i,a,dir,I)
+{if(a->slack<=slack_min&&i->flag==0&&a->head[dir]->flag==0)
+{i->flag=2;a->head[dir]->flag=2;i->match=EDGE_DIR_TO_ARC(a,dir);a->head[dir]->match=EDGE_DIR_TO_ARC(a,1-dir);tree_num-=2;}
+a->slack-=slack_min;}}
+if(allocate_trees)
+{if(tree_num>tree_num_max)
+{if(trees)free(trees);tree_num_max=tree_num;trees=(Tree*)malloc(tree_num_max*sizeof(Tree));}
+t=trees;}
+for(i=nodes;i<nodes+node_num;i++)
+{if(i->flag!=0)continue;i->is_tree_root=1;i->first_tree_child=NULL;i->tree_sibling_prev=last_root;last_root->tree_sibling_next=i;last_root=i;if(allocate_trees)
+{i->tree=t;t->root=i;t->eps=0;t->first[0]=t->first[1]=NULL;t->pq_current=NULL;t->pq00.Reset();t->pq0.Reset();t->pq_blossoms.Reset();t++;}}
+last_root->tree_sibling_next=NULL;}
+PerfectMatching::Node*PerfectMatching::FindBlossomRootInit(Edge*a0)
+{Node*i;Node*j;Node*_i[2];Node*r;int branch;_i[0]=ARC_HEAD(a0);_i[1]=ARC_TAIL(a0);branch=0;while(1)
+{if(!_i[branch]->is_outer)
+{r=_i[branch];j=_i[1-branch];break;}
+_i[branch]->is_outer=0;if(_i[branch]->is_tree_root)
+{j=_i[branch];i=_i[1-branch];while(i->is_outer)
+{i->is_outer=0;i=ARC_HEAD(i->match);i->is_outer=0;i=ARC_HEAD(i->tree_parent);}
+r=i;break;}
+i=ARC_HEAD(_i[branch]->match);i->is_outer=0;_i[branch]=ARC_HEAD(i->tree_parent);branch=1-branch;}
+i=r;while(i!=j)
+{i=ARC_HEAD(i->match);i->is_outer=1;i=ARC_HEAD(i->tree_parent);i->is_outer=1;}
+return r;}
+void PerfectMatching::ShrinkInit(Edge*a0,Node*tree_root)
+{int branch,flag;Node*i;Node*j;Node*r;Arc*a_prev;Arc*aa;tree_root->flag=2;i=tree_root->first_tree_child;if(i)
+while(1)
+{ARC_HEAD(i->match)->flag=2;i->flag=2;MOVE_NODE_IN_TREE(i);}
+r=FindBlossomRootInit(a0);if(!r->is_tree_root)
+{j=ARC_HEAD(r->match);j->match=aa=j->tree_parent;i=ARC_HEAD(aa);while(!i->is_tree_root)
+{j=ARC_HEAD(i->match);i->match=ARC_REV(aa);j->match=aa=j->tree_parent;i=ARC_HEAD(aa);}
+i->match=ARC_REV(aa);}
+tree_root->is_tree_root=0;branch=0;flag=0;a_prev=EDGE_DIR_TO_ARC(a0,0);i=ARC_HEAD(a_prev);while(1)
+{Arc*a_next=(flag==0)?i->match:i->tree_parent;flag=1-flag;i->flag=0;i->match=NULL;if(branch==0)
+{i->blossom_sibling=a_next;if(i==r)
+{branch=1;flag=0;a_prev=ARC_REV(a0);i=ARC_HEAD(a_prev);if(i==r)break;}
+else
+{a_prev=i->blossom_sibling;i=ARC_HEAD(a_prev);}}
+else
+{i->blossom_sibling=ARC_REV(a_prev);a_prev=a_next;i=ARC_HEAD(a_prev);if(i==r)break;}}
+i->blossom_sibling=ARC_REV(a_prev);}
+void PerfectMatching::ExpandInit(Node*k)
+{Node*i=ARC_HEAD(k->blossom_sibling);Node*j;while(1)
+{i->flag=2;i->is_outer=1;if(i==k)break;i->match=i->blossom_sibling;j=ARC_HEAD(i->match);j->flag=2;j->is_outer=1;j->match=ARC_REV(i->match);i=ARC_HEAD(j->blossom_sibling);}}
+void PerfectMatching::AugmentBranchInit(Node*i0,Node*r)
+{Node*tree_root_prev=r->tree_sibling_prev;Node*i;Node*j;Arc*aa;r->flag=2;i=r->first_tree_child;if(i)
+while(1)
+{ARC_HEAD(i->match)->flag=2;i->flag=2;MOVE_NODE_IN_TREE(i);}
+i=i0;if(!i0->is_tree_root)
+{j=ARC_HEAD(i0->match);j->match=aa=j->tree_parent;i=ARC_HEAD(aa);while(!i->is_tree_root)
+{j=ARC_HEAD(i->match);i->match=ARC_REV(aa);j->match=aa=j->tree_parent;i=ARC_HEAD(aa);}
+i->match=ARC_REV(aa);}
+r->is_tree_root=0;tree_root_prev->tree_sibling_next=r->tree_sibling_next;if(r->tree_sibling_next)r->tree_sibling_next->tree_sibling_prev=tree_root_prev;tree_num--;}
 void PerfectMatching::InitGlobal()
-{
-	Node* i;
-	Node* j;
-	Node* r;
-	Node* r2;
-	Node* r3 = NULL; 
-	Edge* a;
-	EdgeIterator I;
-	int dir;
-	Tree TREE;
-	enum { NONE, AUGMENT, SHRINK } flag;
-
-	InitGreedy();
-
-	for (i=nodes; i<nodes+node_num; i++) i->best_edge = NULL;
-
-	PriorityQueue<REAL> pq;
-
-	for (r=nodes[node_num].tree_sibling_next; r; )
-	{
-		r2 = r->tree_sibling_next;
-		if (r2) r3 = r2->tree_sibling_next;
-		i = r;
-
-		pq.Reset();
-
-		r->tree = &TREE;
-
-		REAL eps = 0;
-		Arc* critical_arc = NULL;
-		REAL critical_eps = PM_INFTY; 
-		flag = NONE;
-		Node* branch_root = i;
-	
-		while ( 1 )
-		{
-			i->is_processed = 1;
-			i->y -= eps;
-			if (!i->is_tree_root) ARC_HEAD(i->match)->y += eps;
-
-			FOR_ALL_EDGES(i, a, dir, I)
-			{
-				a->slack += eps;
-				j = a->head[dir];
-
-				if (j->tree == &TREE)
-				{
-					
-					if (j->flag == 0)
-					{
-						REAL slack = a->slack;
-						if (!j->is_processed) slack += eps;
-						if (2*critical_eps > slack || critical_arc == NULL)
-						{
-							flag = SHRINK;
-							critical_eps = slack/2;
-							critical_arc = EDGE_DIR_TO_ARC(a, dir);
-							if (critical_eps <= eps) break;
-							
-						}
-					}
-				}
-				else if (j->flag == 0)
-				{
-					
-					if (critical_eps >= a->slack || critical_arc == NULL)
-					{
-						flag = AUGMENT;
-						critical_eps = a->slack;
-						critical_arc = EDGE_DIR_TO_ARC(a, dir);
-						if (critical_eps <= eps) break;
-						
-					}
-				}
-				else
-				{
-					
-					if (a->slack > eps)
-					{
-						if (a->slack < critical_eps)
-						{
-							if (j->best_edge == NULL)
-							{
-								j->best_edge = a;
-								pq.Add(a);
-							}
-							else
-							{
-								if (a->slack < j->best_edge->slack)
-								{
-									pq.Decrease(j->best_edge, a, pq_buf);
-									j->best_edge = a;
-								}
-							}
-						}
-					}
-					else
-					{
-						assert(j->flag == 2 && !j->is_blossom && !ARC_HEAD(j->match)->is_blossom);
-						if (j->best_edge) pq.Remove(j->best_edge, pq_buf);
-						j->flag = 1;
-						j->tree = i->tree;
-						j->tree_parent = EDGE_DIR_TO_ARC(a, 1-dir);
-						j = ARC_HEAD(j->match);
-						if (j->best_edge) pq.Remove(j->best_edge, pq_buf);
-						ADD_TREE_CHILD(i, j);
-					}
-				}
-			}
-
-			if (dir < 2 && a)
-			{
-				Edge* atmp = a;
-				int dirtmp = dir;
-				CONTINUE_FOR_ALL_EDGES(i, atmp, dirtmp, I) atmp->slack += eps;
-				break;
-			}
-
-			
-			if (i->first_tree_child) i = i->first_tree_child;
-			else
-			{
-				while (i != branch_root && !i->tree_sibling_next) { i = ARC_HEAD(i->match); i = ARC_HEAD(i->tree_parent); }
-				if (i == branch_root)
-				{
-					PriorityQueue<REAL>::Item* q = pq.GetMin();
-					if (q == NULL || q->slack >= critical_eps)
-					{
-						eps = critical_eps;
-						break;
-					}
-					pq.Remove(q, pq_buf);
-					a = (Edge*)q;
-					dir = (a->head[0]->flag == 2) ? 0 : 1;
-					j = a->head[0]; 
-					Arc* aa = EDGE_DIR_TO_ARC(a, dir);
-					eps = a->slack;
-					assert(eps < critical_eps);
-
-					
-					i = ARC_TAIL(aa);
-					j = ARC_HEAD(aa);
-
-					assert(j->flag == 2 && !j->is_blossom && !ARC_HEAD(j->match)->is_blossom);
-					j->flag = 1;
-					j->tree = i->tree;
-					j->tree_parent = ARC_REV(aa);
-					j = ARC_HEAD(j->match);
-					if (j->best_edge) pq.Remove(j->best_edge, pq_buf);
-					ADD_TREE_CHILD(i, j);
-					i = branch_root = j;
-					continue;
-				}
-				i = i->tree_sibling_next;
-			}
-		}
-
-		
-		i = r;
-		while ( 1 )
-		{
-			if (i->is_processed)
-			{
-				i->y += eps;
-				if (!i->is_tree_root)
-				{
-					j = ARC_HEAD(i->match);
-					j->y -= eps;
-					REAL delta = eps - ARC_TO_EDGE_PTR(i->match)->slack;
-					FOR_ALL_EDGES(j, a, dir, I) a->slack += delta;
-					j->best_edge = NULL;
-				}
-				FOR_ALL_EDGES(i, a, dir, I)
-				{
-					if (!PriorityQueue<REAL>::isReset(a))
-					{
-						assert(a->head[dir]->flag == 2 && a->head[dir]->best_edge == a);
-						a->head[dir]->best_edge = NULL;
-						PriorityQueue<REAL>::ResetItem(a);
-					}
-					a->slack -= eps;
-				}
-
-				i->is_processed = 0;
-			}
-			else
-			{
-				if (!i->is_tree_root) ARC_HEAD(i->match)->best_edge = NULL;
-			}
-			i->best_edge = NULL;
-
-			MOVE_NODE_IN_TREE(i);
-		}
-
-		i = ARC_TAIL(critical_arc);
-		j = ARC_HEAD(critical_arc);
-		if (flag == SHRINK)
-		{
-			
-			ShrinkInit(ARC_TO_EDGE_PTR(critical_arc), r);
-		}
-		else
-		{
-			
-			AugmentBranchInit(i, r);
-			if (j->is_outer)
-			{
-				AugmentBranchInit(j, j);
-			}
-			else
-			{
-				ExpandInit(j);
-				tree_num --;
-			}
-			i->match = critical_arc;
-			j->match = ARC_REV(critical_arc);
-		}
-
-		r = r2;
-		if (r && !r->is_tree_root) r = r3;
-	}
-
-	if (tree_num > tree_num_max)
-	{
-		if (trees) free(trees);
-		tree_num_max = tree_num;
-		trees = (Tree*) malloc(tree_num_max*sizeof(Tree));
-	}
-	Tree* t = trees;
-	for (r=nodes; r<nodes+node_num; r++)
-	{
-		if (!r->is_outer)
-		{
-			ExpandInit(r);
-			r->is_tree_root = 1;
-			r->flag = 0;
-			r->first_tree_child = NULL;
-			if (t == trees) { nodes[node_num].tree_sibling_next = r; r->tree_sibling_prev = &nodes[node_num]; }
-			else            { (t-1)->root->tree_sibling_next = r;    r->tree_sibling_prev = (t-1)->root; }
-			r->tree = t;
-			t->root = r;
-			t->eps = 0;
-			t->first[0] = t->first[1] = NULL;
-			t->pq_current = NULL;
-			t->pq00.Reset();
-			t->pq0.Reset();
-			t->pq_blossoms.Reset();
-			t ++;
-		}
-	}
-	assert(t == trees+tree_num);
-	if (t == trees) nodes[node_num].tree_sibling_next = NULL;
-	else            (t-1)->root->tree_sibling_next = NULL;
-}
+{Node*i;Node*j;Node*r;Node*r2;Node*r3=NULL;Edge*a;EdgeIterator I;int dir;Tree TREE;enum{NONE,AUGMENT,SHRINK}flag;InitGreedy();for(i=nodes;i<nodes+node_num;i++)i->best_edge=NULL;PriorityQueue<REAL>pq;for(r=nodes[node_num].tree_sibling_next;r;)
+{r2=r->tree_sibling_next;if(r2)r3=r2->tree_sibling_next;i=r;pq.Reset();r->tree=&TREE;REAL eps=0;Arc*critical_arc=NULL;REAL critical_eps=PM_INFTY;flag=NONE;Node*branch_root=i;while(1)
+{i->is_processed=1;i->y-=eps;if(!i->is_tree_root)ARC_HEAD(i->match)->y+=eps;FOR_ALL_EDGES(i,a,dir,I)
+{a->slack+=eps;j=a->head[dir];if(j->tree==&TREE)
+{if(j->flag==0)
+{REAL slack=a->slack;if(!j->is_processed)slack+=eps;if(2*critical_eps>slack||critical_arc==NULL)
+{flag=SHRINK;critical_eps=slack/2;critical_arc=EDGE_DIR_TO_ARC(a,dir);if(critical_eps<=eps)break;}}}
+else if(j->flag==0)
+{if(critical_eps>=a->slack||critical_arc==NULL)
+{flag=AUGMENT;critical_eps=a->slack;critical_arc=EDGE_DIR_TO_ARC(a,dir);if(critical_eps<=eps)break;}}
+else
+{if(a->slack>eps)
+{if(a->slack<critical_eps)
+{if(j->best_edge==NULL)
+{j->best_edge=a;pq.Add(a);}
+else
+{if(a->slack<j->best_edge->slack)
+{pq.Decrease(j->best_edge,a,pq_buf);j->best_edge=a;}}}}
+else
+{assert(j->flag==2&&!j->is_blossom&&!ARC_HEAD(j->match)->is_blossom);if(j->best_edge)pq.Remove(j->best_edge,pq_buf);j->flag=1;j->tree=i->tree;j->tree_parent=EDGE_DIR_TO_ARC(a,1-dir);j=ARC_HEAD(j->match);if(j->best_edge)pq.Remove(j->best_edge,pq_buf);ADD_TREE_CHILD(i,j);}}}
+if(dir<2&&a)
+{Edge*atmp=a;int dirtmp=dir;CONTINUE_FOR_ALL_EDGES(i,atmp,dirtmp,I)atmp->slack+=eps;break;}
+if(i->first_tree_child)i=i->first_tree_child;else
+{while(i!=branch_root&&!i->tree_sibling_next){i=ARC_HEAD(i->match);i=ARC_HEAD(i->tree_parent);}
+if(i==branch_root)
+{PriorityQueue<REAL>::Item*q=pq.GetMin();if(q==NULL||q->slack>=critical_eps)
+{eps=critical_eps;break;}
+pq.Remove(q,pq_buf);a=(Edge*)q;dir=(a->head[0]->flag==2)?0:1;j=a->head[0];Arc*aa=EDGE_DIR_TO_ARC(a,dir);eps=a->slack;assert(eps<critical_eps);i=ARC_TAIL(aa);j=ARC_HEAD(aa);assert(j->flag==2&&!j->is_blossom&&!ARC_HEAD(j->match)->is_blossom);j->flag=1;j->tree=i->tree;j->tree_parent=ARC_REV(aa);j=ARC_HEAD(j->match);if(j->best_edge)pq.Remove(j->best_edge,pq_buf);ADD_TREE_CHILD(i,j);i=branch_root=j;continue;}
+i=i->tree_sibling_next;}}
+i=r;while(1)
+{if(i->is_processed)
+{i->y+=eps;if(!i->is_tree_root)
+{j=ARC_HEAD(i->match);j->y-=eps;REAL delta=eps-ARC_TO_EDGE_PTR(i->match)->slack;FOR_ALL_EDGES(j,a,dir,I)a->slack+=delta;j->best_edge=NULL;}
+FOR_ALL_EDGES(i,a,dir,I)
+{if(!PriorityQueue<REAL>::isReset(a))
+{assert(a->head[dir]->flag==2&&a->head[dir]->best_edge==a);a->head[dir]->best_edge=NULL;PriorityQueue<REAL>::ResetItem(a);}
+a->slack-=eps;}
+i->is_processed=0;}
+else
+{if(!i->is_tree_root)ARC_HEAD(i->match)->best_edge=NULL;}
+i->best_edge=NULL;MOVE_NODE_IN_TREE(i);}
+i=ARC_TAIL(critical_arc);j=ARC_HEAD(critical_arc);if(flag==SHRINK)
+{ShrinkInit(ARC_TO_EDGE_PTR(critical_arc),r);}
+else
+{AugmentBranchInit(i,r);if(j->is_outer)
+{AugmentBranchInit(j,j);}
+else
+{ExpandInit(j);tree_num--;}
+i->match=critical_arc;j->match=ARC_REV(critical_arc);}
+r=r2;if(r&&!r->is_tree_root)r=r3;}
+if(tree_num>tree_num_max)
+{if(trees)free(trees);tree_num_max=tree_num;trees=(Tree*)malloc(tree_num_max*sizeof(Tree));}
+Tree*t=trees;for(r=nodes;r<nodes+node_num;r++)
+{if(!r->is_outer)
+{ExpandInit(r);r->is_tree_root=1;r->flag=0;r->first_tree_child=NULL;if(t==trees){nodes[node_num].tree_sibling_next=r;r->tree_sibling_prev=&nodes[node_num];}
+else{(t-1)->root->tree_sibling_next=r;r->tree_sibling_prev=(t-1)->root;}
+r->tree=t;t->root=r;t->eps=0;t->first[0]=t->first[1]=NULL;t->pq_current=NULL;t->pq00.Reset();t->pq0.Reset();t->pq_blossoms.Reset();t++;}}
+assert(t==trees+tree_num);if(t==trees)nodes[node_num].tree_sibling_next=NULL;else(t-1)->root->tree_sibling_next=NULL;}
 
 PerfectMatching::PerfectMatching(int nodeNum, int edgeNumMax)
 	: node_num(nodeNum),
@@ -1980,681 +682,167 @@ void PerfectMatching::Finish()
 
 #define IS_VALID_MATCH(i) ((Edge*)(i->match) >= edges && (Edge*)(i->match) < edges + edge_num)
 
-	Node* i0;
-	Node* i;
-	Node* j;
-	Node* k;
-	Node* b;
-	Node* b_prev;
-	Node* b_prev_prev;
-
-	for (i0=nodes; i0<nodes+node_num; i0++)
-	{
-		if (IS_VALID_MATCH(i0)) continue;
-		b_prev = NULL;
-		b = i0;
-		do
-		{
-			b->blossom_grandparent = b_prev;
-			b_prev = b;
-			b = b->blossom_parent;
-		} while (!IS_VALID_MATCH(b));
-
-		b_prev_prev = b_prev->blossom_grandparent;
-		while ( 1 )
-		{
-			for (k=ARC_TAIL0(b->match); k->blossom_parent!=b; k=k->blossom_parent) {}
-			k->match = b->match;
-			i = ARC_HEAD(k->blossom_sibling);
-			while ( i != k )
-			{
-				i->match = i->blossom_sibling;
-				j = ARC_HEAD(i->match);
-				j->match = ARC_REV(i->match);
-				i = ARC_HEAD(j->blossom_sibling);
-			}
-
-			b = b_prev;
-			if (!b->is_blossom) break;
-			b_prev = b_prev_prev;
-			b_prev_prev = b_prev->blossom_grandparent;
-		}
-	}
-}
-
-
-void PerfectMatching::AddTreeEdge(Tree* t0, Tree* t1)
-{
-	TreeEdge* e = tree_edges->New();
-	e->head[0] = t1;
-	e->head[1] = t0;
-	e->next[0] = t0->first[0];
-	t0->first[0] = e;
-	e->next[1] = t1->first[1];
-	t1->first[1] = e;
-
-	e->pq00.Reset();
-	e->pq01[0].Reset();
-	e->pq01[1].Reset();
-
-	t1->pq_current = e;
-	t1->dir_current = 0;
-}
-
-bool PerfectMatching::ProcessEdge00(Edge* a, bool update_boundary_edge)
-{
-	int dir;
-	Node* j;
-	Node* prev[2];
-	Node* last[2];
-	for (dir=0; dir<2; dir++)
-	{
-		if (a->head[dir]->is_outer) { prev[dir] = NULL; last[dir] = a->head[dir]; }
-		else
-		{
-			j = a->head[dir];
-			GET_PENULTIMATE_BLOSSOM(j);
-			prev[dir] = j;
-			last[dir] = prev[dir]->blossom_parent;
-			
-		}
-	}
-
-	if (last[0] != last[1])
-	{
-		for (dir=0; dir<2; dir++)
-		{
-			j = a->head[dir];
-			if (j != last[dir]) { int dir_rev = 1 - dir; MOVE_EDGE(j, last[dir], a, dir_rev); }
-		}
-		if (update_boundary_edge) a->slack -= 2*a->head[0]->tree->eps;
-		return true;
-	}
-
-	if (prev[0] != prev[1])
-	{
-		for (dir=0; dir<2; dir++)
-		{
-			j = a->head[dir];
-			if (j != prev[dir]) { int dir_rev = 1 - dir; MOVE_EDGE(j, prev[dir], a, dir_rev); }
-		}
-		a->slack -= 2*prev[0]->blossom_eps;
-		return false;
-	}
-
-	for (dir=0; dir<2; dir++)
-	{
-		j = a->head[1-dir];
-		REMOVE_EDGE(j, a, dir);
-	}
-	a->next[0] = prev[0]->blossom_selfloops;
-	prev[0]->blossom_selfloops = a;
-	return false;
-}
+	Node*i0;Node*i;Node*j;Node*k;Node*b;Node*b_prev;Node*b_prev_prev;for(i0=nodes;i0<nodes+node_num;i0++)
+{if(IS_VALID_MATCH(i0))continue;b_prev=NULL;b=i0;do
+{b->blossom_grandparent=b_prev;b_prev=b;b=b->blossom_parent;}while(!IS_VALID_MATCH(b));b_prev_prev=b_prev->blossom_grandparent;while(1)
+{for(k=ARC_TAIL0(b->match);k->blossom_parent!=b;k=k->blossom_parent){}
+k->match=b->match;i=ARC_HEAD(k->blossom_sibling);while(i!=k)
+{i->match=i->blossom_sibling;j=ARC_HEAD(i->match);j->match=ARC_REV(i->match);i=ARC_HEAD(j->blossom_sibling);}
+b=b_prev;if(!b->is_blossom)break;b_prev=b_prev_prev;b_prev_prev=b_prev->blossom_grandparent;}}}
+void PerfectMatching::AddTreeEdge(Tree*t0,Tree*t1)
+{TreeEdge*e=tree_edges->New();e->head[0]=t1;e->head[1]=t0;e->next[0]=t0->first[0];t0->first[0]=e;e->next[1]=t1->first[1];t1->first[1]=e;e->pq00.Reset();e->pq01[0].Reset();e->pq01[1].Reset();t1->pq_current=e;t1->dir_current=0;}
+bool PerfectMatching::ProcessEdge00(Edge*a,bool update_boundary_edge)
+{int dir;Node*j;Node*prev[2];Node*last[2];for(dir=0;dir<2;dir++)
+{if(a->head[dir]->is_outer){prev[dir]=NULL;last[dir]=a->head[dir];}
+else
+{j=a->head[dir];GET_PENULTIMATE_BLOSSOM(j);prev[dir]=j;last[dir]=prev[dir]->blossom_parent;}}
+if(last[0]!=last[1])
+{for(dir=0;dir<2;dir++)
+{j=a->head[dir];if(j!=last[dir]){int dir_rev=1-dir;MOVE_EDGE(j,last[dir],a,dir_rev);}}
+if(update_boundary_edge)a->slack-=2*a->head[0]->tree->eps;return true;}
+if(prev[0]!=prev[1])
+{for(dir=0;dir<2;dir++)
+{j=a->head[dir];if(j!=prev[dir]){int dir_rev=1-dir;MOVE_EDGE(j,prev[dir],a,dir_rev);}}
+a->slack-=2*prev[0]->blossom_eps;return false;}
+for(dir=0;dir<2;dir++)
+{j=a->head[1-dir];REMOVE_EDGE(j,a,dir);}
+a->next[0]=prev[0]->blossom_selfloops;prev[0]->blossom_selfloops=a;return false;}
+inline void PerfectMatching::AugmentBranch(Node*i0)
+{int dir;Tree*t=i0->tree;Node*r=t->root;Node*tree_root_prev=r->tree_sibling_prev;Node*i;Node*j;Edge*a;EdgeIterator I;Arc*aa;REAL eps=t->eps;PriorityQueue<REAL>::Item*q;TreeEdge*e;TreeEdgeIterator T;Tree*t2;t=r->tree;t->pq_current=t;FOR_ALL_TREE_EDGES_X(t,e,dir,T)
+{t2=e->head[dir];e->head[1-dir]=NULL;t2->pq_current=e;t2->dir_current=dir;}
+i=r->first_tree_child;if(i)
+while(1)
+{Node*i0=i;i=ARC_HEAD(i->match);if(i->is_processed)
+{if(i->is_blossom)
+{a=ARC_TO_EDGE_PTR(i->match);REAL tmp=a->slack;a->slack=i->y;i->y=tmp;PriorityQueue<REAL>::ResetItem(a);}
+FOR_ALL_EDGES(i,a,dir,I)
+{GET_OUTER_HEAD(a,dir,j);if(j->flag==0&&j->is_processed)
+{if(j->tree!=t)
+{a->slack+=eps;if(PriorityQueue<REAL>::isReset(a))j->tree->pq0.Add(a);}}
+else a->slack+=eps;}}
+i=i0;MOVE_NODE_IN_TREE(i);}
+FOR_ALL_TREE_EDGES(t,e,dir)
+{t2=e->head[dir];t2->pq_current=NULL;e->pq01[1-dir].Merge(t2->pq0);for(q=e->pq00.GetFirst();q;q=e->pq00.GetNext(q))
+{q->slack-=eps;int dir2;for(dir2=0;dir2<2;dir2++)GET_OUTER_HEAD((Edge*)q,dir2,j);}
+e->pq00.Merge(t2->pq0);for(q=e->pq01[dir].GetAndResetFirst();q;q=e->pq01[dir].GetAndResetNext())
+{q->slack-=eps;int dir2;for(dir2=0;dir2<2;dir2++)GET_OUTER_HEAD((Edge*)q,dir2,j);}}
+for(q=t->pq0.GetAndResetFirst();q;q=t->pq0.GetAndResetNext())
+{q->slack-=eps;int dir2;for(dir2=0;dir2<2;dir2++)GET_OUTER_HEAD((Edge*)q,dir2,j);}
+for(q=t->pq00.GetAndResetFirst();q;q=t->pq00.GetAndResetNext())
+{ProcessEdge00((Edge*)q);}
+r->flag=2;r->is_processed=0;i=r->first_tree_child;r->y+=eps;if(i)
+while(1)
+{j=ARC_HEAD(i->match);j->flag=2;i->flag=2;j->is_processed=0;i->is_processed=0;j->y-=eps;i->y+=eps;MOVE_NODE_IN_TREE(i);}
+i=i0;if(!i0->is_tree_root)
+{j=ARC_HEAD(i0->match);GET_TREE_PARENT(j,i);j->match=aa=j->tree_parent;while(!i->is_tree_root)
+{j=ARC_HEAD(i->match);i->match=ARC_REV(aa);GET_TREE_PARENT(j,i);j->match=aa=j->tree_parent;}
+i->match=ARC_REV(aa);}
+r->is_tree_root=0;tree_root_prev->tree_sibling_next=r->tree_sibling_next;if(r->tree_sibling_next)r->tree_sibling_next->tree_sibling_prev=tree_root_prev;tree_num--;}
 
 
-inline void PerfectMatching::AugmentBranch(Node* i0)
-{
-	int dir;
-	Tree* t = i0->tree;
-	Node* r = t->root;
-	Node* tree_root_prev = r->tree_sibling_prev;
-	Node* i;
-	Node* j;
-	Edge* a;
-	EdgeIterator I;
-	Arc* aa;
-	REAL eps = t->eps;
-	PriorityQueue<REAL>::Item* q;
-	TreeEdge* e;
-	TreeEdgeIterator T;
-	Tree* t2;
-
-	t = r->tree;
-	t->pq_current = t;
-
-	FOR_ALL_TREE_EDGES_X(t, e, dir, T)
-	{
-		t2 = e->head[dir];
-		e->head[1-dir] = NULL; 
-
-		t2->pq_current = e;
-		t2->dir_current = dir;
-	}
-
-	i = r->first_tree_child;
-	if ( i )
-	while ( 1 )
-	{
-		Node* i0 = i;
-		i = ARC_HEAD(i->match);
-		if (i->is_processed)
-		{
-			if (i->is_blossom)
-			{
-				a = ARC_TO_EDGE_PTR(i->match);
-				REAL tmp = a->slack; a->slack = i->y; i->y = tmp;
-				PriorityQueue<REAL>::ResetItem(a);
-			}
-			FOR_ALL_EDGES(i, a, dir, I)
-			{
-				GET_OUTER_HEAD(a, dir, j);
-
-				if (j->flag == 0 && j->is_processed)
-				{
-					if (j->tree != t)
-					{
-						a->slack += eps;
-						if (PriorityQueue<REAL>::isReset(a)) j->tree->pq0.Add(a);
-					}
-				}
-				else a->slack += eps;
-			}
-		}
-
-		i = i0;
-		MOVE_NODE_IN_TREE(i);
-	}
-
-	
-
-	FOR_ALL_TREE_EDGES(t, e, dir)
-	{
-		t2 = e->head[dir];
-		t2->pq_current = NULL;
-
-		e->pq01[1-dir].Merge(t2->pq0);
-		for (q=e->pq00.GetFirst(); q; q=e->pq00.GetNext(q))
-		{
-			q->slack -= eps;
-			int dir2;
-			for (dir2=0; dir2<2; dir2++) GET_OUTER_HEAD((Edge*)q, dir2, j);
-		}
-		e->pq00.Merge(t2->pq0);
-		for (q=e->pq01[dir].GetAndResetFirst(); q; q=e->pq01[dir].GetAndResetNext())
-		{
-			q->slack -= eps;
-			int dir2;
-			for (dir2=0; dir2<2; dir2++) GET_OUTER_HEAD((Edge*)q, dir2, j);
-		}
-	}
-	for (q=t->pq0.GetAndResetFirst(); q; q=t->pq0.GetAndResetNext())
-	{
-		q->slack -= eps;
-		int dir2;
-		for (dir2=0; dir2<2; dir2++) GET_OUTER_HEAD((Edge*)q, dir2, j);
-	}
-	for (q=t->pq00.GetAndResetFirst(); q; q=t->pq00.GetAndResetNext())
-	{
-		ProcessEdge00((Edge*)q);
-	}
-
-	
-
-	r->flag = 2;
-	r->is_processed = 0;
-	i = r->first_tree_child;
-	r->y += eps;
-	if ( i )
-	while ( 1 )
-	{
-		j = ARC_HEAD(i->match);
-		j->flag = 2;
-		i->flag = 2;
-		j->is_processed = 0;
-		i->is_processed = 0;
-		j->y -= eps;
-		i->y += eps;
-
-		MOVE_NODE_IN_TREE(i);
-	}
-
-	
-
-	i = i0;
-	if ( !i0->is_tree_root )
-	{
-		j = ARC_HEAD(i0->match);
-		GET_TREE_PARENT(j, i);
-		j->match = aa = j->tree_parent;
-		while ( !i->is_tree_root )
-		{
-			j = ARC_HEAD(i->match);
-			i->match = ARC_REV(aa);
-			GET_TREE_PARENT(j, i);
-			j->match = aa = j->tree_parent;
-		}
-		i->match = ARC_REV(aa);
-	}
-	r->is_tree_root = 0;
-	tree_root_prev->tree_sibling_next = r->tree_sibling_next;
-	if (r->tree_sibling_next) r->tree_sibling_next->tree_sibling_prev = tree_root_prev;
-	tree_num --;
-}
-
-
-void PerfectMatching::Augment(Edge* a)
-{
-	Node* j;
-	int dir;
-
-	for (dir=0; dir<2; dir++)
-	{
-		GET_OUTER_HEAD(a, dir, j);
-		AugmentBranch(j);
-		j->match = EDGE_DIR_TO_ARC(a, 1-dir);
-	}
-	if (options.verbose)
-	{
-		int k = 1;
-		while (k < tree_num) k *= 2;
-		if (k == tree_num || tree_num<=8 || (tree_num<=64 && (tree_num%8)==0)) { printf("%d.", tree_num); fflush(stdout); }
-	}
-}
-
-inline void PerfectMatching::GrowNode(Node* i)
-{
-	
-	
-
-	Edge* a;
-	EdgeIterator I;
-	int dir;
-	Node* j;
-	Tree* t = i->tree;
-	REAL eps = t->eps;
-	Edge* a_augment = NULL;
-
-	FOR_ALL_EDGES(i, a, dir, I)
-	{
-		GET_OUTER_HEAD(a, dir, j);
-
-		if (j->flag == 2)
-		{
-			a->slack += eps; 
-			if (a->slack > 0) 
-			{ 
-				t->pq0.Add(a); 
-			}
-			else
-			{
-				j->flag = 1;
-				j->tree = i->tree;
-				j->tree_parent = EDGE_DIR_TO_ARC(a, 1-dir);
-				j->y += eps;
-				j = ARC_HEAD(j->match);
-				j->y -= eps;
-				ADD_TREE_CHILD(i, j);
-			}
-		}
-		else
-		{
-			if (j->flag == 0 && j->is_processed)
-			{
-				if (!PriorityQueue<REAL>::isReset(a)) j->tree->pq0.Remove(a, pq_buf);
-				if (a->slack <= j->tree->eps && j->tree != t) a_augment = a;
-				a->slack += eps;
-				if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-				j->tree->pq_current->pq00.Add(a);
-			}
-			else
-			{
-				a->slack += eps;
-				if (j->flag == 1 && j->tree != t)
-				{
-					if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-					j->tree->pq_current->pq01[j->tree->dir_current].Add(a);
-				}
-			}
-		}
-	}
-
-	
-	i->is_processed = 1;
-
-	if (!i->is_tree_root)
-	{
-		j = ARC_HEAD(i->match);
-		
-		j->is_processed = 1;
-		if (j->is_blossom)
-		{
-			a = ARC_TO_EDGE_PTR(i->match);
-			REAL tmp = a->slack; a->slack = j->y; j->y = tmp;
-			t->pq_blossoms.Add(a);
-		}
-	}
-
-	if (a_augment) Augment(a_augment);
-
-	stat.grow_count ++;
-}
-
-
-
-void PerfectMatching::GrowTree(Node* r, bool new_subtree)
-{
-	
-
-	Node* i = r;
-	Node* j;
-	Node* stop = r->tree_sibling_next;
-	if (new_subtree && r->first_tree_child) stop = r->first_tree_child;
-	Edge* a;
-	EdgeIterator I;
-	int dir;
-	Tree* t = r->tree;
-	REAL eps = t->eps;
-	int tree_num0 = tree_num;
-
-	while ( 1 )
-	{
-		if (!i->is_tree_root)
-		{
-			
-			i = ARC_HEAD(i->match);
-			FOR_ALL_EDGES(i, a, dir, I)
-			{
-				GET_OUTER_HEAD(a, dir, j);
-
-				if (j->flag == 2) a->slack -= eps;
-				else
-				{
-					if (j->flag == 0 && j->is_processed)
-					{
-						if (!PriorityQueue<REAL>::isReset(a)) j->tree->pq0.Remove(a, pq_buf);
-						a->slack -= eps;
-						if (j->tree != t)
-						{
-							if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-							j->tree->pq_current->pq01[1-j->tree->dir_current].Add(a);
-						}
-					}
-					else a->slack -= eps;
-				}
-			}
-			i = ARC_HEAD(i->match);
-		}
-		
-		GrowNode(i);
-		if (tree_num != tree_num0) break;
-
-		if (i->first_tree_child) i = i->first_tree_child;
-		else
-		{
-			while (i != r && !i->tree_sibling_next) { i = ARC_HEAD(i->match); GET_TREE_PARENT(i, i); }
-			i = i->tree_sibling_next;
-		}
-		if (i == stop) break;
-	}
-}
+void PerfectMatching::Augment(Edge*a)
+{Node*j;int dir;for(dir=0;dir<2;dir++)
+{GET_OUTER_HEAD(a,dir,j);AugmentBranch(j);j->match=EDGE_DIR_TO_ARC(a,1-dir);}
+if(options.verbose)
+{int k=1;while(k<tree_num)k*=2;if(k==tree_num||tree_num<=8||(tree_num<=64&&(tree_num%8)==0)){printf("%d.",tree_num);fflush(stdout);}}}
+inline void PerfectMatching::GrowNode(Node*i)
+{Edge*a;EdgeIterator I;int dir;Node*j;Tree*t=i->tree;REAL eps=t->eps;Edge*a_augment=NULL;FOR_ALL_EDGES(i,a,dir,I)
+{GET_OUTER_HEAD(a,dir,j);if(j->flag==2)
+{a->slack+=eps;if(a->slack>0)
+{t->pq0.Add(a);}
+else
+{j->flag=1;j->tree=i->tree;j->tree_parent=EDGE_DIR_TO_ARC(a,1-dir);j->y+=eps;j=ARC_HEAD(j->match);j->y-=eps;ADD_TREE_CHILD(i,j);}}
+else
+{if(j->flag==0&&j->is_processed)
+{if(!PriorityQueue<REAL>::isReset(a))j->tree->pq0.Remove(a,pq_buf);if(a->slack<=j->tree->eps&&j->tree!=t)a_augment=a;a->slack+=eps;if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq00.Add(a);}
+else
+{a->slack+=eps;if(j->flag==1&&j->tree!=t)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq01[j->tree->dir_current].Add(a);}}}}
+i->is_processed=1;if(!i->is_tree_root)
+{j=ARC_HEAD(i->match);j->is_processed=1;if(j->is_blossom)
+{a=ARC_TO_EDGE_PTR(i->match);REAL tmp=a->slack;a->slack=j->y;j->y=tmp;t->pq_blossoms.Add(a);}}
+if(a_augment)Augment(a_augment);stat.grow_count++;}
+void PerfectMatching::GrowTree(Node*r,bool new_subtree)
+{Node*i=r;Node*j;Node*stop=r->tree_sibling_next;if(new_subtree&&r->first_tree_child)stop=r->first_tree_child;Edge*a;EdgeIterator I;int dir;Tree*t=r->tree;REAL eps=t->eps;int tree_num0=tree_num;while(1)
+{if(!i->is_tree_root)
+{i=ARC_HEAD(i->match);FOR_ALL_EDGES(i,a,dir,I)
+{GET_OUTER_HEAD(a,dir,j);if(j->flag==2)a->slack-=eps;else
+{if(j->flag==0&&j->is_processed)
+{if(!PriorityQueue<REAL>::isReset(a))j->tree->pq0.Remove(a,pq_buf);a->slack-=eps;if(j->tree!=t)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq01[1-j->tree->dir_current].Add(a);}}
+else a->slack-=eps;}}
+i=ARC_HEAD(i->match);}
+GrowNode(i);if(tree_num!=tree_num0)break;if(i->first_tree_child)i=i->first_tree_child;else
+{while(i!=r&&!i->tree_sibling_next){i=ARC_HEAD(i->match);GET_TREE_PARENT(i,i);}
+i=i->tree_sibling_next;}
+if(i==stop)break;}}
 
 void PerfectMatching::Solve(bool finish)
 {
-	Node* i;
-	Node* j;
-	Node* r;
-	Node* r2;
-	Node* r3 = NULL; 
-	PriorityQueue<REAL>::Item* q;
-	Edge* a;
-	Tree* t;
-	Tree* t2;
-	TreeEdge* e;
-	TreeEdgeIterator T;
-	int dir;
-	REAL eps;
-
-	double start_time = get_time();
-
-	if (IS_INT)
-	{
-		if (options.dual_greedy_update_option == 2)
-		{
-			exit(1);
-		}
-		if (options.dual_LP_threshold > 0)
-		{
-			exit(1);
-		}
-	}
-	if (options.verbose) { printf("perfect matching with %d nodes and %d edges\n", node_num, edge_num); fflush(stdout); }
-
-	if (first_solve)
-	{
-		if (options.verbose) { printf("    starting init..."); fflush(stdout); }
-		if (options.fractional_jumpstart) InitGlobal();
-		else                              InitGreedy();
-		if (options.verbose) printf("done [%.3f secs]. ", get_time() - start_time);
-		first_solve = false;
-	}
-	else if (options.verbose) printf("    solving updated problem. ");
-
-	if (options.verbose) { printf("%d trees\n    .", tree_num); fflush(stdout); }
-
-	memset(&stat, 0, sizeof(Stat));
+Node*i;Node*j;Node*r;Node*r2;Node*r3=NULL;PriorityQueue<REAL>::Item*q;Edge*a;Tree*t;Tree*t2;TreeEdge*e;TreeEdgeIterator T;int dir;REAL eps;double start_time=get_time();if(IS_INT)
+{if(options.dual_greedy_update_option==2)
+{exit(1);}
+if(options.dual_LP_threshold>0)
+{exit(1);}}
+if(options.verbose){printf("perfect matching with %d nodes and %d edges\n",node_num,edge_num);fflush(stdout);}
+if(first_solve)
+{if(options.verbose){printf("    starting init...");fflush(stdout);}
+if(options.fractional_jumpstart)InitGlobal();else InitGreedy();if(options.verbose)printf("done [%.3f secs]. ",get_time()-start_time);first_solve=false;}
+else if(options.verbose)printf("    solving updated problem. ");if(options.verbose){printf("%d trees\n    .",tree_num);fflush(stdout);}
+memset(&stat,0,sizeof(Stat));for(r=nodes[node_num].tree_sibling_next;r;r=r->tree_sibling_next)
+{t=r->tree;EdgeIterator I;FOR_ALL_EDGES(r,a,dir,I)
+{j=a->head[dir];if(j->flag==2)t->pq0.Add(a);else if(j->is_processed)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq00.Add(a);}}
+r->is_processed=1;FOR_ALL_TREE_EDGES(t,e,dir)e->head[dir]->pq_current=NULL;}
 
 	
 	
 	
 
-	for (r=nodes[node_num].tree_sibling_next; r; r=r->tree_sibling_next)
-	{
-		
-		t = r->tree;
-		
+	while(1)
+{int tree_num0=tree_num;Stat stat0=stat;REAL delta=0;for(r=nodes[node_num].tree_sibling_next;r;)
+{r2=r->tree_sibling_next;if(r2)r3=r2->tree_sibling_next;t=r->tree;int tree_num1=tree_num;t->pq_current=t;if(options.update_duals_before)
+{eps=PM_INFTY;Edge*a_augment=NULL;REAL eps_augment=PM_INFTY;if((q=t->pq0.GetMin()))eps=q->slack;if((q=t->pq_blossoms.GetMin())&&eps>q->slack)eps=q->slack;while((q=t->pq00.GetMin()))
+{if(ProcessEdge00((Edge*)q,false))break;t->pq00.Remove(q,pq_buf);}
+if(q&&2*eps>q->slack)eps=q->slack/2;FOR_ALL_TREE_EDGES_X(t,e,dir,T)
+{t2=e->head[dir];t2->pq_current=e;t2->dir_current=dir;if((q=e->pq00.GetMin())&&(!a_augment||eps_augment>q->slack-t2->eps)){a_augment=(Edge*)q;eps_augment=q->slack-t2->eps;}
+if((q=e->pq01[dir].GetMin())&&eps>q->slack+t2->eps)eps=q->slack+t2->eps;}
+if(eps>eps_augment)eps=eps_augment;if(eps>t->eps)
+{delta+=eps-t->eps;t->eps=eps;}
+if(a_augment&&eps_augment<=t->eps)Augment(a_augment);}
+else
+{FOR_ALL_TREE_EDGES_X(t,e,dir,T)
+{t2=e->head[dir];t2->pq_current=e;t2->dir_current=dir;if((q=e->pq00.GetMin())&&(q->slack-t->eps<=t2->eps))
+{Augment((Edge*)q);break;}}}
+eps=t->eps;REAL twice_eps=2*eps;while(tree_num1==tree_num)
+{if((q=t->pq0.GetMin())&&q->slack<=t->eps)
+{a=(Edge*)q;dir=(a->head[1]->flag==2&&a->head[1]->is_outer)?1:0;GET_OUTER_HEAD(a,1-dir,i);j=a->head[dir];j->flag=1;j->tree=i->tree;j->tree_parent=EDGE_DIR_TO_ARC(a,1-dir);j->y+=eps;j=ARC_HEAD(j->match);j->y-=eps;ADD_TREE_CHILD(i,j);GrowTree(j,true);}
+else if((q=t->pq00.GetMin())&&q->slack<=twice_eps)
+{t->pq00.Remove(q,pq_buf);a=(Edge*)q;if(ProcessEdge00(a))Shrink(a);}
+else if((q=t->pq_blossoms.GetMin())&&q->slack<=eps)
+{t->pq_blossoms.Remove(q,pq_buf);a=(Edge*)q;j=(a->head[0]->flag==1)?a->head[0]:a->head[1];REAL tmp=a->slack;a->slack=j->y;j->y=tmp;Expand(j);}
+else break;}
+if(tree_num1==tree_num)
+{t->pq_current=NULL;if(options.update_duals_after)
+{eps=PM_INFTY;Edge*a_augment=NULL;REAL eps_augment=PM_INFTY;if((q=t->pq0.GetMin()))eps=q->slack;if((q=t->pq_blossoms.GetMin())&&eps>q->slack)eps=q->slack;while((q=t->pq00.GetMin()))
+{if(ProcessEdge00((Edge*)q,false))break;t->pq00.Remove(q,pq_buf);}
+if(q&&2*eps>q->slack)eps=q->slack/2;FOR_ALL_TREE_EDGES(t,e,dir)
+{t2=e->head[dir];e->head[dir]->pq_current=NULL;if((q=e->pq00.GetMin())&&(!a_augment||eps_augment>q->slack-t2->eps)){a_augment=(Edge*)q;eps_augment=q->slack-t2->eps;}
+if((q=e->pq01[dir].GetMin())&&eps>q->slack+t2->eps)eps=q->slack+t2->eps;}
+if(eps>eps_augment)eps=eps_augment;bool progress=false;if(eps>t->eps)
+{delta+=eps-t->eps;t->eps=eps;progress=true;}
+if(a_augment&&eps_augment<=t->eps)Augment(a_augment);else if(progress&&tree_num>=options.single_tree_threshold*node_num)
+{r=t->root;continue;}}
+else
+{FOR_ALL_TREE_EDGES(t,e,dir)e->head[dir]->pq_current=NULL;}}
+r=r2;if(r&&!r->is_tree_root)r=r3;}
+if(tree_num==0)break;if(tree_num==tree_num0)
+{if(!UpdateDuals())
+{if(!IS_INT&&delta<=PM_THRESHOLD)
+{int dual_greedy_update_option=options.dual_greedy_update_option;options.dual_greedy_update_option=2;UpdateDuals();options.dual_greedy_update_option=dual_greedy_update_option;}}}}
 
-		EdgeIterator I;
-		FOR_ALL_EDGES(r, a, dir, I)
-		{
-			j = a->head[dir];
-			if (j->flag == 2) t->pq0.Add(a);
-			else if (j->is_processed)
-			{
-				
-				if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-				j->tree->pq_current->pq00.Add(a);
-			}
-		}
-		r->is_processed = 1;
-		FOR_ALL_TREE_EDGES(t, e, dir) e->head[dir]->pq_current = NULL;
-	}
-
-	
-	
-	
-
-	while ( 1 )
-	{
-		int tree_num0 = tree_num;
-		Stat stat0 = stat;
-		REAL delta = 0;
-
-		for (r=nodes[node_num].tree_sibling_next; r; )
-		{
-			r2 = r->tree_sibling_next;
-			if (r2) r3 = r2->tree_sibling_next;
-			t = r->tree;
-
-			int tree_num1 = tree_num;
-
-			
-			
-			
-			t->pq_current = t;
-			if (options.update_duals_before)
-			{
-				eps = PM_INFTY;
-				Edge* a_augment = NULL;
-				REAL eps_augment = PM_INFTY;
-				if ((q=t->pq0.GetMin())) eps = q->slack;
-				if ((q=t->pq_blossoms.GetMin()) && eps > q->slack) eps = q->slack;
-				while ((q=t->pq00.GetMin()))
-				{
-					if (ProcessEdge00((Edge*)q, false)) break;
-					t->pq00.Remove(q, pq_buf);
-				}
-				if (q && 2*eps > q->slack) eps = q->slack/2;
-				FOR_ALL_TREE_EDGES_X(t, e, dir, T)
-				{
-					t2 = e->head[dir];
-					t2->pq_current = e;
-					t2->dir_current = dir;
-					if ((q=e->pq00.GetMin()) && (!a_augment || eps_augment > q->slack-t2->eps)) { a_augment = (Edge*)q; eps_augment = q->slack-t2->eps; }
-					if ((q=e->pq01[dir].GetMin()) && eps > q->slack+t2->eps) eps = q->slack+t2->eps;
-				}
-				if (eps > eps_augment) eps = eps_augment;
-				if (eps > t->eps)
-				{
-					delta += eps - t->eps;
-					t->eps = eps;
-				}
-				if (a_augment && eps_augment <= t->eps) Augment(a_augment);
-			}
-			else
-			{
-				FOR_ALL_TREE_EDGES_X(t, e, dir, T)
-				{
-					t2 = e->head[dir];
-					t2->pq_current = e;
-					t2->dir_current = dir;
-
-					if ((q=e->pq00.GetMin()) && (q->slack - t->eps <= t2->eps))
-					{
-						Augment((Edge*)q);
-						break;
-					}
-				}
-			}
-
-			
-			
-			
-			eps = t->eps;
-			REAL twice_eps = 2*eps;
-
-			while ( tree_num1 == tree_num )
-			{
-				if ((q=t->pq0.GetMin()) && q->slack <= t->eps)
-				{
-					a = (Edge*)q;
-					dir = (a->head[1]->flag == 2 && a->head[1]->is_outer) ? 1 : 0;
-					GET_OUTER_HEAD(a, 1-dir, i);
-					j = a->head[dir];
-					
-
-					j->flag = 1;
-					j->tree = i->tree;
-					j->tree_parent = EDGE_DIR_TO_ARC(a, 1-dir);
-					j->y += eps;
-					j = ARC_HEAD(j->match);
-					j->y -= eps;
-					ADD_TREE_CHILD(i, j);
-
-					GrowTree(j, true);
-				}
-				else if ((q=t->pq00.GetMin()) && q->slack <= twice_eps)
-				{
-					t->pq00.Remove(q, pq_buf);
-					a = (Edge*)q;
-					if (ProcessEdge00(a)) Shrink(a);
-				}
-				else if ((q=t->pq_blossoms.GetMin()) && q->slack <= eps)
-				{
-					t->pq_blossoms.Remove(q, pq_buf);
-					a = (Edge*)q;
-					j = (a->head[0]->flag == 1) ? a->head[0] : a->head[1];
-					REAL tmp = a->slack; a->slack = j->y; j->y = tmp;
-					Expand(j);
-				}
-				else break;
-			}
-
-			
-			
-			
-			if ( tree_num1 == tree_num )
-			{
-				t->pq_current = NULL;
-				if (options.update_duals_after)
-				{
-					eps = PM_INFTY;
-					Edge* a_augment = NULL;
-					REAL eps_augment = PM_INFTY;
-					if ((q=t->pq0.GetMin())) eps = q->slack;
-					if ((q=t->pq_blossoms.GetMin()) && eps > q->slack) eps = q->slack;
-					while ((q=t->pq00.GetMin()))
-					{
-						if (ProcessEdge00((Edge*)q, false)) break;
-						t->pq00.Remove(q, pq_buf);
-					}
-					if (q && 2*eps > q->slack) eps = q->slack/2;
-					FOR_ALL_TREE_EDGES(t, e, dir)
-					{
-						t2 = e->head[dir];
-						e->head[dir]->pq_current = NULL;
-						if ((q=e->pq00.GetMin()) && (!a_augment || eps_augment > q->slack-t2->eps)) { a_augment = (Edge*)q; eps_augment = q->slack-t2->eps; }
-						if ((q=e->pq01[dir].GetMin()) && eps > q->slack+t2->eps) eps = q->slack+t2->eps;
-					}
-					if (eps > eps_augment) eps = eps_augment;
-					bool progress = false;
-					if (eps > t->eps)
-					{
-						delta += eps - t->eps;
-						t->eps = eps;
-						progress = true;
-					}
-					if (a_augment && eps_augment <= t->eps) Augment(a_augment);
-					else if (progress && tree_num >= options.single_tree_threshold*node_num)
-					{
-						
-						r = t->root;
-						continue;
-					}
-				}
-				else
-				{
-					FOR_ALL_TREE_EDGES(t, e, dir) e->head[dir]->pq_current = NULL;
-				}
-			}
-
-			
-			
-			
-
-			r = r2;
-			if (r && !r->is_tree_root) r = r3;
-		}
-
-		if (tree_num == 0) break;
-
-		if ( tree_num == tree_num0 )
-		  
-		  
-		  
-		{
-			if (!UpdateDuals())
-			{
-				if (!IS_INT && delta <= PM_THRESHOLD) 
-				{
-					
-					int dual_greedy_update_option = options.dual_greedy_update_option;
-					options.dual_greedy_update_option = 2;
-					UpdateDuals();
-					options.dual_greedy_update_option = dual_greedy_update_option;
-				}
-			}
-		}
-	}
-
-	if (finish) Finish();
-
-	if (options.verbose)
-	{
-		printf("\ndone [%.3f secs]. %d grows, %d expands, %d shrinks\n", get_time()-start_time, stat.grow_count, stat.expand_count, stat.shrink_count); 
-		printf("    expands: [%.3f secs], shrinks: [%.3f secs], dual updates: [%.3f secs]\n", stat.expand_time, stat.shrink_time, stat.dual_time); 
-		fflush(stdout); 
-	}
+	if(finish)Finish();if(options.verbose)
+{printf("\ndone [%.3f secs]. %d grows, %d expands, %d shrinks\n",get_time()-start_time,stat.grow_count,stat.expand_count,stat.shrink_count);printf("    expands: [%.3f secs], shrinks: [%.3f secs], dual updates: [%.3f secs]\n",stat.expand_time,stat.shrink_time,stat.dual_time);fflush(stdout);}
 }
 
 struct PerfectMatching::LCATreeX : LCATree
@@ -2950,57 +1138,19 @@ void PerfectMatching::FinishUpdate()
 }
 
 PerfectMatching::REAL PerfectMatching::GetTwiceSum(NodeId i)
-{
-	assert(i>=0 && i<node_num);
-	return nodes[i].y;
-}
-
-inline void PerfectMatching::ProcessNegativeEdge(Edge* a)
-{
-	int dir;
-	Node* i;
-	for (dir=0; dir<2; dir++)
-	{
-		i = a->head0[dir];
-		if (i->is_outer)
-		{
-			if (!i->is_tree_root)
-			{
-				i->is_tree_root = 1;
-				i = ARC_HEAD(i->match);
-				assert(!i->is_tree_root && i->is_outer);
-				i->is_tree_root = 1;
-				if (i->is_blossom)
-				{
-					i->first_tree_child = nodes[node_num].first_tree_child;
-					nodes[node_num].first_tree_child = i;
-				}
-			}
-            return; 
-		}
-		if (i->blossom_grandparent->is_removed) return;
-	}
-
-	Node* b = i->blossom_grandparent;
-	assert(b->is_outer);
-
-	if (!b->is_tree_root)
-	{
-		b->is_tree_root = 1;
-		i = ARC_HEAD(b->match);
-		assert(!i->is_tree_root && i->is_outer);
-		i->is_tree_root = 1;
-		if (i->is_blossom)
-		{
-			i->first_tree_child = nodes[node_num].first_tree_child;
-			nodes[node_num].first_tree_child = i;
-		}
-	}
-
-	b->is_removed = 1;
-	b->tree_sibling_next = removed_first;
-	removed_first = b;
-}
+{assert(i>=0&&i<node_num);return nodes[i].y;}
+inline void PerfectMatching::ProcessNegativeEdge(Edge*a)
+{int dir;Node*i;for(dir=0;dir<2;dir++)
+{i=a->head0[dir];if(i->is_outer)
+{if(!i->is_tree_root)
+{i->is_tree_root=1;i=ARC_HEAD(i->match);assert(!i->is_tree_root&&i->is_outer);i->is_tree_root=1;if(i->is_blossom)
+{i->first_tree_child=nodes[node_num].first_tree_child;nodes[node_num].first_tree_child=i;}}
+return;}
+if(i->blossom_grandparent->is_removed)return;}
+Node*b=i->blossom_grandparent;assert(b->is_outer);if(!b->is_tree_root)
+{b->is_tree_root=1;i=ARC_HEAD(b->match);assert(!i->is_tree_root&&i->is_outer);i->is_tree_root=1;if(i->is_blossom)
+{i->first_tree_child=nodes[node_num].first_tree_child;nodes[node_num].first_tree_child=i;}}
+b->is_removed=1;b->tree_sibling_next=removed_first;removed_first=b;}
 
 PerfectMatching::EdgeId PerfectMatching::AddNewEdge(NodeId _i, NodeId _j, REAL cost, bool do_not_add_if_positive_slack)
 {
@@ -3048,337 +1198,79 @@ PerfectMatching::EdgeId PerfectMatching::AddNewEdge(NodeId _i, NodeId _j, REAL c
 
 	return edge_num ++;
 }
-
-void PerfectMatching::UpdateCost(EdgeId e, REAL delta_cost)
-{
-	assert(e>=0 && e<edge_num);
-	Edge* a = edges + e;
-	a->slack += delta_cost*COST_FACTOR;
-	if (a->slack == 0) return;
-	if (a->slack > 0)
-	{
-		Node* i = a->head[1];
-		Node* j = a->head[0];
-		if (i->is_outer)
-		{
-			if (ARC_TO_EDGE_PTR(i->match) != a && ARC_TO_EDGE_PTR(j->match) != a) return;
-		}
-		else
-		{
-			if (ARC_TO_EDGE_PTR(i->blossom_sibling) != a && ARC_TO_EDGE_PTR(j->blossom_sibling) != a) return;
-		}
-	}
-	ProcessNegativeEdge(a);
-}
-
-PerfectMatching::Node* PerfectMatching::FindBlossomRoot(Edge* a0)
-{
-	Node* i;
-	Node* j;
-	Node* _i[2];
-	Node* r;
-	int branch;
-
-	_i[0] = ARC_HEAD(a0);
-	_i[1] = ARC_TAIL(a0);
-	branch = 0;
-	while ( 1 )
-	{
-		if (_i[branch]->is_marked)
-		{
-			r = _i[branch]; 
-			j = _i[1-branch];
-			break; 
-		}
-		_i[branch]->is_marked = 1;
-		if (_i[branch]->is_tree_root)
-		{
-			j = _i[branch];
-			i = _i[1-branch];
-			while (!i->is_marked)
-			{
-				i->is_marked = 1;
-				i = ARC_HEAD(i->match);
-				GET_TREE_PARENT(i, i);
-			}
-			r = i;
-			break;
-		}
-		i = ARC_HEAD(_i[branch]->match);
-		GET_TREE_PARENT(i, _i[branch]);
-		branch = 1 - branch;
-	}
-	i = r;
-	while ( i != j )
-	{
-		i = ARC_HEAD(i->match);
-		i = ARC_HEAD(i->tree_parent);
-		i->is_marked = 0;
-	}
-	
-	i = ARC_HEAD(a0);
-	while (i != r)
-	{
-		i->is_marked = 0;
-		i->is_outer = 0;
-		i = ARC_HEAD(i->match);
-		i->is_outer = 0;
-		i = ARC_HEAD(i->tree_parent);
-	}
-	i = ARC_TAIL(a0);
-	while (i != r)
-	{
-		i->is_marked = 0;
-		i->is_outer = 0;
-		i = ARC_HEAD(i->match);
-		i->is_outer = 0;
-		i = ARC_HEAD(i->tree_parent);
-	}
-	r->is_marked = 0;
-	r->is_outer = 0;
-
-	return r;
-}
-
-
-void PerfectMatching::Shrink(Edge* a0)
-{
-	
-	
-
-	double start_time = get_time();
-
-	int branch, dir;
-	Node* r;
-	Node* i;
-	Node* j;
-	Edge* a;
-	Edge** a_inner_ptr;
-	Arc* a_prev;
-	Node* b = blossoms->New();
-	Edge* a_augment = NULL;
-	Edge* b_match;
-
-	b->first[0] = b->first[1] = NULL;
-
-	
-	r = FindBlossomRoot(a0);
-	Tree* t = r->tree;
-	REAL eps = t->eps;
-
-	b->first_tree_child = NULL;
-	i = ARC_HEAD(a0);
-	branch = 0;
-	while ( 1 )
-	{
-		if (i == r && branch) break;
-		i->is_marked = 1;
-		if (i == r)
-		{
-			branch = 1;
-			i = ARC_TAIL(a0);
-			continue;
-		}
-
-		
-		REMOVE_FROM_TREE(i);
-
-		
-		if (i->first_tree_child)
-		{
-			j = i->first_tree_child;
-			if (!b->first_tree_child) b->first_tree_child = j;
-			else
-			{
-				Node* j_last = j->tree_sibling_prev;
-				j->tree_sibling_prev = b->first_tree_child->tree_sibling_prev;
-				b->first_tree_child->tree_sibling_prev->tree_sibling_next = j;
-				b->first_tree_child->tree_sibling_prev = j_last;
-			}
-		}
-
-		
-		i = ARC_HEAD(i->match);
-		i->is_marked = 1;
-		if (i->is_blossom)
-		{
-			a = ARC_TO_EDGE_PTR(i->match);
-			t->pq_blossoms.Remove(a, pq_buf);
-			REAL tmp = a->slack; a->slack = i->y; i->y = tmp;
-		}
-		i = ARC_HEAD(i->tree_parent); 
-	}
-
-	
-	if (i->first_tree_child)
-	{
-		j = i->first_tree_child;
-		if (!b->first_tree_child) b->first_tree_child = j;
-		else
-		{
-			Node* j_last = j->tree_sibling_prev;
-			j->tree_sibling_prev = b->first_tree_child->tree_sibling_prev;
-			b->first_tree_child->tree_sibling_prev->tree_sibling_next = j;
-			b->first_tree_child->tree_sibling_prev = j_last;
-		}
-	}
-
-	
-	b->is_removed = 0;
-	b->is_outer = 1;
-	b->flag = 0;
-	b->is_blossom = 1;
-	b->is_tree_root = r->is_tree_root;
-	b->is_processed = 1;
-	b->tree = t;
-	b->y = -eps;
-	b->is_marked = 0;
-
-	
-	b->tree_sibling_prev = r->tree_sibling_prev;
-	b->tree_sibling_next = r->tree_sibling_next;
-	Node* b_parent = NULL;
-	if (!b->is_tree_root)
-	{
-		b_parent = ARC_HEAD(r->match); GET_TREE_PARENT(b_parent, b_parent); 
-	}
-	if (b->tree_sibling_prev->tree_sibling_next) b->tree_sibling_prev->tree_sibling_next = b;
-	else b_parent->first_tree_child = b;
-	if (b->tree_sibling_next) b->tree_sibling_next->tree_sibling_prev = b;
-	else if (b_parent) b_parent->first_tree_child->tree_sibling_prev = b;
-
-	if (b->is_tree_root)
-	{
-		b->tree->root = b;
-		b_match = NULL;
-	}
-	else
-	{
-		b->match = r->match;
-		b_match = ARC_TO_EDGE_PTR(b->match);
-	}
-	REAL b_match_slack = 0; 
-	if (b_match && ARC_HEAD(b->match)->is_blossom)
-	{
-		b_match_slack = b_match->slack;
-		b_match->slack = ARC_HEAD(b->match)->y;
-	}
-
-	
-	branch = 0;
-	a_prev = EDGE_DIR_TO_ARC(a0, 0);
-	i = ARC_HEAD(a_prev);
-	while ( 1 )
-	{
-		
-		if (i->flag == 0) i->y += eps;
-		else              i->y -= eps;
-		i->is_processed = 0;
-
-		if (i->flag == 1)
-		{
-			Edge* a_prev;
-			for (dir=0; dir<2; dir++)
-			if (i->first[dir])
-			{
-				for (a_inner_ptr=&i->first[dir], a=*a_inner_ptr, a_prev=a->prev[dir], a_prev->next[dir]=NULL; a; a=*a_inner_ptr)
-				{
-					Node* j0 = a->head[dir];
-					for (j=j0; !j->is_outer && !j->is_marked; j = j->blossom_parent) {}
-					if (j != j0) { int dir_rev = 1 - dir; MOVE_EDGE(j0, j, a, dir_rev); }
-					if (j->is_marked) 
-					{
-						a_inner_ptr = &a->next[dir];
-						a->prev[dir] = a_prev;
-						a_prev = a;
-
-						if (j->flag == 1) a->slack += eps;
-					}
-					else 
-					{
-						*a_inner_ptr = a->next[dir];
-						ADD_EDGE(b, a, dir);
-
-						if (j->flag == 0 && j->tree != t) 
-						{
-							j->tree->pq_current->pq01[1-j->tree->dir_current].Remove(a, pq_buf);
-							if (a->slack + eps <= j->tree->eps) a_augment = a;
-						}
-						a->slack += 2*eps;
-						if (j->flag == 2) t->pq0.Add(a);
-						else if (j->flag == 0)
-						{
-							if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-							j->tree->pq_current->pq00.Add(a);
-						}
-						else if (j->tree != t)
-						{
-							if (!j->tree->pq_current) AddTreeEdge(t, j->tree);
-							j->tree->pq_current->pq01[j->tree->dir_current].Add(a);
-						}
-					}
-				}
-				if (i->first[dir])
-				{
-					a_prev->next[dir] = i->first[dir];
-					i->first[dir]->prev[dir] = a_prev;
-				}
-			}
-		}
-
-		Arc* a_next = (i->flag == 0) ? i->match : i->tree_parent;
-		i->blossom_parent = b;
-		i->match = NULL;
-		i->blossom_grandparent = b;
-		i->blossom_selfloops = NULL;
-		if (branch == 0)
-		{
-			i->blossom_sibling = a_next;
-			if (i == r)
-			{
-				branch = 1;
-				a_prev = ARC_REV(a0);
-				i = ARC_HEAD(a_prev);
-				if (i == r) break;
-			}
-			else
-			{
-				a_prev = i->blossom_sibling;
-				i = ARC_HEAD(a_prev);
-			}
-		}
-		else
-		{
-			i->blossom_sibling = ARC_REV(a_prev);
-			a_prev = a_next;
-			i = ARC_HEAD(a_prev);
-			if (i == r) break;
-		}
-	}
-	i->blossom_sibling = ARC_REV(a_prev);
-	r->is_tree_root = 0;
-
-	for (i=ARC_HEAD(r->blossom_sibling); ; i = ARC_HEAD(i->blossom_sibling))
-	{
-		i->is_marked = 0;
-		i->blossom_eps = eps;
-		if (i == r) break;
-	}
-
-	if (b_match)
-	{
-		if (ARC_HEAD(b->match)->is_blossom)
-		{
-			b_match->slack = b_match_slack;
-		}
-		dir = ARC_TO_EDGE_DIR(b->match);
-		
-		MOVE_EDGE(r, b, b_match, dir);
-	}
-
-	stat.shrink_count ++;
-	blossom_num ++;
-	stat.shrink_time += get_time() - start_time;
-
-	if (a_augment) Augment(a_augment);
-}
+void PerfectMatching::UpdateCost(EdgeId e,REAL delta_cost)
+{assert(e>=0&&e<edge_num);Edge*a=edges+e;a->slack+=delta_cost*COST_FACTOR;if(a->slack==0)return;if(a->slack>0)
+{Node*i=a->head[1];Node*j=a->head[0];if(i->is_outer)
+{if(ARC_TO_EDGE_PTR(i->match)!=a&&ARC_TO_EDGE_PTR(j->match)!=a)return;}
+else
+{if(ARC_TO_EDGE_PTR(i->blossom_sibling)!=a&&ARC_TO_EDGE_PTR(j->blossom_sibling)!=a)return;}}
+ProcessNegativeEdge(a);}
+PerfectMatching::Node*PerfectMatching::FindBlossomRoot(Edge*a0)
+{Node*i;Node*j;Node*_i[2];Node*r;int branch;_i[0]=ARC_HEAD(a0);_i[1]=ARC_TAIL(a0);branch=0;while(1)
+{if(_i[branch]->is_marked)
+{r=_i[branch];j=_i[1-branch];break;}
+_i[branch]->is_marked=1;if(_i[branch]->is_tree_root)
+{j=_i[branch];i=_i[1-branch];while(!i->is_marked)
+{i->is_marked=1;i=ARC_HEAD(i->match);GET_TREE_PARENT(i,i);}
+r=i;break;}
+i=ARC_HEAD(_i[branch]->match);GET_TREE_PARENT(i,_i[branch]);branch=1-branch;}
+i=r;while(i!=j)
+{i=ARC_HEAD(i->match);i=ARC_HEAD(i->tree_parent);i->is_marked=0;}
+i=ARC_HEAD(a0);while(i!=r)
+{i->is_marked=0;i->is_outer=0;i=ARC_HEAD(i->match);i->is_outer=0;i=ARC_HEAD(i->tree_parent);}
+i=ARC_TAIL(a0);while(i!=r)
+{i->is_marked=0;i->is_outer=0;i=ARC_HEAD(i->match);i->is_outer=0;i=ARC_HEAD(i->tree_parent);}
+r->is_marked=0;r->is_outer=0;return r;}
+void PerfectMatching::Shrink(Edge*a0)
+{double start_time=get_time();int branch,dir;Node*r;Node*i;Node*j;Edge*a;Edge**a_inner_ptr;Arc*a_prev;Node*b=blossoms->New();Edge*a_augment=NULL;Edge*b_match;b->first[0]=b->first[1]=NULL;r=FindBlossomRoot(a0);Tree*t=r->tree;REAL eps=t->eps;b->first_tree_child=NULL;i=ARC_HEAD(a0);branch=0;while(1)
+{if(i==r&&branch)break;i->is_marked=1;if(i==r)
+{branch=1;i=ARC_TAIL(a0);continue;}
+REMOVE_FROM_TREE(i);if(i->first_tree_child)
+{j=i->first_tree_child;if(!b->first_tree_child)b->first_tree_child=j;else
+{Node*j_last=j->tree_sibling_prev;j->tree_sibling_prev=b->first_tree_child->tree_sibling_prev;b->first_tree_child->tree_sibling_prev->tree_sibling_next=j;b->first_tree_child->tree_sibling_prev=j_last;}}
+i=ARC_HEAD(i->match);i->is_marked=1;if(i->is_blossom)
+{a=ARC_TO_EDGE_PTR(i->match);t->pq_blossoms.Remove(a,pq_buf);REAL tmp=a->slack;a->slack=i->y;i->y=tmp;}
+i=ARC_HEAD(i->tree_parent);}
+if(i->first_tree_child)
+{j=i->first_tree_child;if(!b->first_tree_child)b->first_tree_child=j;else
+{Node*j_last=j->tree_sibling_prev;j->tree_sibling_prev=b->first_tree_child->tree_sibling_prev;b->first_tree_child->tree_sibling_prev->tree_sibling_next=j;b->first_tree_child->tree_sibling_prev=j_last;}}
+b->is_removed=0;b->is_outer=1;b->flag=0;b->is_blossom=1;b->is_tree_root=r->is_tree_root;b->is_processed=1;b->tree=t;b->y=-eps;b->is_marked=0;b->tree_sibling_prev=r->tree_sibling_prev;b->tree_sibling_next=r->tree_sibling_next;Node*b_parent=NULL;if(!b->is_tree_root)
+{b_parent=ARC_HEAD(r->match);GET_TREE_PARENT(b_parent,b_parent);}
+if(b->tree_sibling_prev->tree_sibling_next)b->tree_sibling_prev->tree_sibling_next=b;else b_parent->first_tree_child=b;if(b->tree_sibling_next)b->tree_sibling_next->tree_sibling_prev=b;else if(b_parent)b_parent->first_tree_child->tree_sibling_prev=b;if(b->is_tree_root)
+{b->tree->root=b;b_match=NULL;}
+else
+{b->match=r->match;b_match=ARC_TO_EDGE_PTR(b->match);}
+REAL b_match_slack=0;if(b_match&&ARC_HEAD(b->match)->is_blossom)
+{b_match_slack=b_match->slack;b_match->slack=ARC_HEAD(b->match)->y;}
+branch=0;a_prev=EDGE_DIR_TO_ARC(a0,0);i=ARC_HEAD(a_prev);while(1)
+{if(i->flag==0)i->y+=eps;else i->y-=eps;i->is_processed=0;if(i->flag==1)
+{Edge*a_prev;for(dir=0;dir<2;dir++)
+if(i->first[dir])
+{for(a_inner_ptr=&i->first[dir],a=*a_inner_ptr,a_prev=a->prev[dir],a_prev->next[dir]=NULL;a;a=*a_inner_ptr)
+{Node*j0=a->head[dir];for(j=j0;!j->is_outer&&!j->is_marked;j=j->blossom_parent){}
+if(j!=j0){int dir_rev=1-dir;MOVE_EDGE(j0,j,a,dir_rev);}
+if(j->is_marked)
+{a_inner_ptr=&a->next[dir];a->prev[dir]=a_prev;a_prev=a;if(j->flag==1)a->slack+=eps;}
+else
+{*a_inner_ptr=a->next[dir];ADD_EDGE(b,a,dir);if(j->flag==0&&j->tree!=t)
+{j->tree->pq_current->pq01[1-j->tree->dir_current].Remove(a,pq_buf);if(a->slack+eps<=j->tree->eps)a_augment=a;}
+a->slack+=2*eps;if(j->flag==2)t->pq0.Add(a);else if(j->flag==0)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq00.Add(a);}
+else if(j->tree!=t)
+{if(!j->tree->pq_current)AddTreeEdge(t,j->tree);j->tree->pq_current->pq01[j->tree->dir_current].Add(a);}}}
+if(i->first[dir])
+{a_prev->next[dir]=i->first[dir];i->first[dir]->prev[dir]=a_prev;}}}
+Arc*a_next=(i->flag==0)?i->match:i->tree_parent;i->blossom_parent=b;i->match=NULL;i->blossom_grandparent=b;i->blossom_selfloops=NULL;if(branch==0)
+{i->blossom_sibling=a_next;if(i==r)
+{branch=1;a_prev=ARC_REV(a0);i=ARC_HEAD(a_prev);if(i==r)break;}
+else
+{a_prev=i->blossom_sibling;i=ARC_HEAD(a_prev);}}
+else
+{i->blossom_sibling=ARC_REV(a_prev);a_prev=a_next;i=ARC_HEAD(a_prev);if(i==r)break;}}
+i->blossom_sibling=ARC_REV(a_prev);r->is_tree_root=0;for(i=ARC_HEAD(r->blossom_sibling);;i=ARC_HEAD(i->blossom_sibling))
+{i->is_marked=0;i->blossom_eps=eps;if(i==r)break;}
+if(b_match)
+{if(ARC_HEAD(b->match)->is_blossom)
+{b_match->slack=b_match_slack;}
+dir=ARC_TO_EDGE_DIR(b->match);MOVE_EDGE(r,b,b_match,dir);}
+stat.shrink_count++;blossom_num++;stat.shrink_time+=get_time()-start_time;if(a_augment)Augment(a_augment);}

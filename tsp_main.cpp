@@ -50,7 +50,7 @@ int main()
         double best_cost = __DBL_MAX__;
         std::vector<int> best_path;
 
-        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.5)
         {
             twoOpt(path, vertices, init_clock);
             cost = findTotalCost(path,vertices);
@@ -61,6 +61,17 @@ int main()
             }
 
             twoHOpt(path, vertices, init_clock);
+            cost = findTotalCost(path,vertices);
+            if(cost < best_cost)
+            {
+                best_cost = cost;
+                best_path = path;
+            }
+        }
+
+        while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
+        {
+            threeOpt(path, vertices, init_clock);
             cost = findTotalCost(path,vertices);
             if(cost < best_cost)
             {

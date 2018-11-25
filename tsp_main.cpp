@@ -9,6 +9,7 @@
 #include "perfect_matching.hpp"
 #include "euler_hamilton.hpp"
 #include "k-opt.hpp"
+#include "compute_distance.hpp"
 
 
 int main()
@@ -19,6 +20,8 @@ int main()
     std::cin >> numVertices;
     std::vector<std::array<double,2>> vertices(numVertices);
     read_in_stdin(vertices);
+
+    init_dist_array(vertices);
 
     std::vector<std::array<int,2>> mst_edges;
     MST *m = new MST(vertices);
@@ -50,6 +53,8 @@ int main()
         double best_cost = __DBL_MAX__;
         std::vector<int> best_path;
 
+        int count = 0;
+
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.0)
         {
             twoOpt(path, vertices, init_clock);
@@ -67,7 +72,25 @@ int main()
                 best_cost = cost;
                 best_path = path;
             }
+            count++;
+            if(count > 4)
+            {
+                count = 0;
+                path = best_path;
+            }
         }
+
+        /*if(numVertices > 20)
+        {
+            // otherwise shuffeling is not necessary
+            int start = (int)(numVertices*(0.3));
+            int length = start + (int)(numVertices*(0.3));
+            path = best_path;
+            std::random_shuffle(path.begin()+start,path.begin()+length);
+        }*/
+
+        count = 0;
+        path = best_path;
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
@@ -85,6 +108,13 @@ int main()
             {
                 best_cost = cost;
                 best_path = path;
+            }
+
+            count++;
+            if(count > 4)
+            {
+                count = 0;
+                path = best_path;
             }
         }
 

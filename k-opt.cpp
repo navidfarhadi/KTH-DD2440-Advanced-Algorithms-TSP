@@ -29,7 +29,7 @@ void twoOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vertic
 				l=0;
 			}
 
-			delta = compute_rounded_distance(vertices[circuit[k]], vertices[circuit[j]]) + compute_rounded_distance(vertices[circuit[i]], vertices[circuit[l]]) - compute_rounded_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_rounded_distance(vertices[circuit[j]], vertices[circuit[l]]);
+			delta = compute_rounded_distance(circuit[k], circuit[j]) + compute_rounded_distance(circuit[i], circuit[l]) - compute_rounded_distance(circuit[k], circuit[i]) - compute_rounded_distance(circuit[j], circuit[l]);
 
 			if (delta<0)
 			{
@@ -81,7 +81,7 @@ void twoHOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &verti
 				l=0;
 			}
 
-			delta = compute_rounded_distance(vertices[circuit[m]], vertices[circuit[i]]) + compute_rounded_distance(vertices[circuit[j]], vertices[circuit[k]]) + compute_rounded_distance(vertices[circuit[k]], vertices[circuit[l]]) - compute_rounded_distance(vertices[circuit[m]], vertices[circuit[k]]) - compute_rounded_distance(vertices[circuit[k]], vertices[circuit[i]]) - compute_rounded_distance(vertices[circuit[j]], vertices[circuit[l]]);
+			delta = compute_rounded_distance(circuit[m], circuit[i]) + compute_rounded_distance(circuit[j], circuit[k]) + compute_rounded_distance(circuit[k], circuit[l]) - compute_rounded_distance(circuit[m], circuit[k]) - compute_rounded_distance(circuit[k], circuit[i]) - compute_rounded_distance(circuit[j], circuit[l]);
 
 			if (delta<0)
 			{
@@ -118,51 +118,51 @@ void threeOpt(std::vector<int> &circuit, std::vector<std::array<double,2>> &vert
 			{
                 int casee = 0;
                 std::vector<int> h;
-				current = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[(i+1)%n]])+ compute_rounded_distance(vertices[circuit[j]],vertices[circuit[(j + 1)%n]])+ compute_rounded_distance(vertices[circuit[k]],vertices[circuit[(k + 1)%n]]);
+				current = compute_rounded_distance(circuit[i],circuit[(i+1)%n])+ compute_rounded_distance(circuit[j],circuit[(j + 1)%n])+ compute_rounded_distance(circuit[k],circuit[(k + 1)%n]);
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[(i + 1)%n]])+ compute_rounded_distance(vertices[circuit[j]],vertices[circuit[k]])+ compute_rounded_distance(vertices[circuit[(j + 1)%n]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[(i + 1)%n])+ compute_rounded_distance(circuit[j],circuit[k])+ compute_rounded_distance(circuit[(j + 1)%n],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 1;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[j]])+ compute_rounded_distance(vertices[circuit[(i + 1)%n]],vertices[circuit[(j + 1)%n]])+ compute_rounded_distance(vertices[circuit[k]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[j])+ compute_rounded_distance(circuit[(i + 1)%n],circuit[(j + 1)%n])+ compute_rounded_distance(circuit[k],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 2;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[j]])+ compute_rounded_distance(vertices[circuit[(i + 1)%n]],vertices[circuit[k]])+ compute_rounded_distance(vertices[circuit[(j + 1)%n]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[j])+ compute_rounded_distance(circuit[(i + 1)%n],circuit[k])+ compute_rounded_distance(circuit[(j + 1)%n],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 3;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[(j + 1)%n]])+ compute_rounded_distance(vertices[circuit[k]],vertices[circuit[(i + 1)%n]])+ compute_rounded_distance(vertices[circuit[j]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[(j + 1)%n])+ compute_rounded_distance(circuit[k],circuit[(i + 1)%n])+ compute_rounded_distance(circuit[j],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 4;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[(j + 1)%n]])+ compute_rounded_distance(vertices[circuit[k]],vertices[circuit[j]])+ compute_rounded_distance(vertices[circuit[(i + 1)%n]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[(j + 1)%n])+ compute_rounded_distance(circuit[k],circuit[j])+ compute_rounded_distance(circuit[(i + 1)%n],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 5;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[k]])+ compute_rounded_distance(vertices[circuit[(j + 1)%n]],vertices[circuit[(i + 1)%n]])+ compute_rounded_distance(vertices[circuit[j]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[k])+ compute_rounded_distance(circuit[(j + 1)%n],circuit[(i + 1)%n])+ compute_rounded_distance(circuit[j],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;
 					casee = 6;
 				}
 
-				modif = compute_rounded_distance(vertices[circuit[i]],vertices[circuit[k]])+ compute_rounded_distance(vertices[circuit[(j + 1)%n]],vertices[circuit[j]])+ compute_rounded_distance(vertices[circuit[(i + 1)%n]],vertices[circuit[(k + 1)%n]]);
+				modif = compute_rounded_distance(circuit[i],circuit[k])+ compute_rounded_distance(circuit[(j + 1)%n],circuit[j])+ compute_rounded_distance(circuit[(i + 1)%n],circuit[(k + 1)%n]);
 				if (current > modif)
 				{
 					current = modif;

@@ -111,10 +111,10 @@ double findTotalCost(std::vector<int> &hamiltonian_circuit, std::vector<std::arr
 
     for(i = 0; i < hamiltonian_circuit.size() - 1; i++)
     {
-        cost += compute_rounded_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[i+1]]);
+        cost += compute_rounded_distance(hamiltonian_circuit[i],hamiltonian_circuit[i+1]);
     }
 
-    cost += compute_rounded_distance(vertices[hamiltonian_circuit[i]],vertices[hamiltonian_circuit[0]]);
+    cost += compute_rounded_distance(hamiltonian_circuit[i],hamiltonian_circuit[0]);
 
     return cost;
 }

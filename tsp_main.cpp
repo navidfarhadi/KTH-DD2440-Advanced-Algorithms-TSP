@@ -10,6 +10,7 @@
 #include "euler_hamilton.hpp"
 #include "k-opt.hpp"
 #include "compute_distance.hpp"
+#include "mf.hpp"
 
 
 int main()
@@ -23,7 +24,11 @@ int main()
 
     init_dist_array(vertices);
 
-    std::vector<std::array<int,2>> mst_edges;
+    std::vector<int> init_tour;
+
+    create_inital_tour(numVertices, init_tour);
+
+    /*std::vector<std::array<int,2>> mst_edges;
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
@@ -44,10 +49,11 @@ int main()
     changeToMap(multigraph, new_graph);
 
     if(hasEulerianCircuit(new_graph))
-    {
+    {*/
         std::vector<int> path;
-        findEulerianCircuit(new_graph,path, 0);
-        findHamiltonianCircuit(path,numVertices);
+        /*findEulerianCircuit(new_graph,path, 0);
+        findHamiltonianCircuit(path,numVertices);*/
+        path = init_tour;
 
 	
         //double cost;
@@ -125,7 +131,7 @@ int main()
         {
             std::cout << path[i] << std::endl;
         }
-    }
+    //}
 
     return 0;
 }

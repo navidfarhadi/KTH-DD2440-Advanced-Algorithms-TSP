@@ -22,6 +22,12 @@ int main()
     std::vector<std::array<double,2>> vertices(numVertices);
     read_in_stdin(vertices);
 
+    if(vertices.size() == 1)
+    {
+        std::cout << "0" << std::endl;
+        return 0;
+    }
+
     init_dist_array(vertices);
 
     std::vector<int> init_tour;

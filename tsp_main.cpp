@@ -10,7 +10,6 @@
 #include "euler_hamilton.hpp"
 #include "k-opt.hpp"
 #include "compute_distance.hpp"
-#include "mf.hpp"
 
 
 int main()
@@ -22,27 +21,23 @@ int main()
     std::vector<std::array<double,2>> vertices(numVertices);
     read_in_stdin(vertices);
 
-    if(vertices.size() == 1)
-    {
-        std::cout << "0" << std::endl;
-        return 0;
-    }
-
+    //initialization of the array of distances
     init_dist_array(vertices);
 
-    std::vector<int> init_tour;
+    //Implementation of Christofides algorithm
 
-    create_inital_tour(numVertices, init_tour);
-
-    /*std::vector<std::array<int,2>> mst_edges;
+    //Minimum spanning tree
+    std::vector<std::array<int,2>> mst_edges;
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
+    //Finding vertices with Odd Degree
     std::vector<int> oddVertexIndices;
     std::vector<std::array<int,2>> sub_edges;
     find_odd_v(mst_edges,oddVertexIndices,numVertices);
     create_subgraph(oddVertexIndices, sub_edges);
 
+    //Perfect matching
     std::vector<std::array<int,2>> matching_edges;
     find_perfect_matching(sub_edges, vertices, oddVertexIndices, matching_edges);
 
@@ -55,89 +50,33 @@ int main()
     changeToMap(multigraph, new_graph);
 
     if(hasEulerianCircuit(new_graph))
-    {*/
+    {
+	//Finding eularian and hamiltonian circuit
         std::vector<int> path;
-        /*findEulerianCircuit(new_graph,path, 0);
-        findHamiltonianCircuit(path,numVertices);*/
-        path = init_tour;
+        findEulerianCircuit(new_graph,path, 0);
+        findHamiltonianCircuit(path,numVertices);
 
-	
-        //double cost;
-        //double best_cost = __DBL_MAX__;
-        /*std::vector<int> best_path;
-
-        int count = 0;
-	*/
+	//Optimization k-opt
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.05)
         {
 	    twoOpt(path, vertices, init_clock);
-	    /*
-            cost = findTotalCost(path,vertices);
-            if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }*/
 
             twoHOpt(path, vertices, init_clock);
-            //cost = findTotalCost(path,vertices);
-            /*if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }
-            count++;
-            if(count > 4)
-            {
-                count = 0;
-                path = best_path;
-            }*/
         }
-
-        /*if(numVertices > 20)
-        {
-            // otherwise shuffeling is not necessary
-            int start = (int)(numVertices*(0.3));
-            int length = start + (int)(numVertices*(0.3));
-            path = best_path;
-            std::random_shuffle(path.begin()+start,path.begin()+length);
-        }*/
-
-        /*count = 0;
-        path = best_path;*/
 
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.99)
         {
             twoHOpt(path, vertices, init_clock);
-            /*cost = findTotalCost(path,vertices);
-            if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }*/
             
             threeOpt(path, vertices, init_clock);
-            //cost = findTotalCost(path,vertices);
-            /*if(cost < best_cost)
-            {
-                best_cost = cost;
-                best_path = path;
-            }
-
-            count++;
-            if(count > 4)
-            {
-                count = 0;
-                path = best_path;
-            }*/
         }
 
         for(int i = 0; i < path.size(); i++)
         {
             std::cout << path[i] << std::endl;
         }
-    //}
+    }
 
     return 0;
 }

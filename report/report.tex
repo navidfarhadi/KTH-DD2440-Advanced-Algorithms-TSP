@@ -88,7 +88,13 @@
 	
 
 	\today\\[0.10 cm]
-	\textsc{Autumn Term 2018}
+	\textsc{Autumn Term 2018}\\[0.80 cm]
+	\textsc{Navid Farhadi}\\[0.10 cm]
+	\textsc{Franz Fuchs}\\[0.10 cm]
+	\textsc{Arturs Kurzemnieks}\\[0.10 cm]
+	\textsc{Alexandre Peinot}\\[3.0 cm]
+
+	\textsc{Kattis submission ID: 3520421 (score: 35.02778)}
 \end{titlepage}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Table of contents %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,6 +182,20 @@ because it is possible to have to iterate through all edges and to check at the 
 edge an circle of length $(n-1)$.
 
 \subsection{Optimization}
+
+After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible from the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
+
+In practice, these algorithms must run until there is no new improvment. However, due to the Kattis time constraint, we have set a limit in the time execution in order to get the best possible path in the allowed time.
+
+\subsubsection{2-opt}
+
+The concept of the 2-opt algorithm is really simple. It basically consits in breaking two different edges of the tour and reconnecting the two obtained part of the tour in a way that minimize the distances. In this case, there are only two way of reconnecting the tour. The complete 2-opt algorithm iterates over all the possible pair of edge cutting in the tour.
+
+Our implementation of the algorithm is $O(n²)$ because it iterates through all pair of edge cutting. However, it is quite fast as it only evaluate the distances which could change by reversing the path between the two cuts and do the reverse only if it improves the tour's distance.
+
+\subsubsection{2H-opt}
+
+\subsubsection{3-opt}
 
 \section{Evaluation}
 

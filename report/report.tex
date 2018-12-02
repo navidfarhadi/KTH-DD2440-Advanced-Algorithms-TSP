@@ -2,7 +2,6 @@
 
 % Packages
 \usepackage[english]{babel}
-\usepackage{natbib}
 \usepackage{url}
 \usepackage[table]{xcolor}
 \usepackage[utf8x]{inputenc}
@@ -152,6 +151,27 @@ less equal than the amount vertices, we can simplify the runtime of finding
 all odd vertices to $O(n)$. The formula $E_{MST} \le n$ holds because
 of the construction criterion of MST.
 
+\textbf{Minimum-weight Perfect Matching}
+
+The next step of Christofides involves finding a minimum-weight perfect matching for
+the odd-degree subgraph acquired in the previous step. A perfect matching for a graph
+is a set of edges so that no vertices are shared between the edges but all vertices are covered, i.e.,
+every vertex is covered by exactly one edge in the matching. By the Handshaking lemma, the odd-degree
+subgraph from the previous step must have an even number of vertices, therefore no verttices are left
+without a pairing and a perfect matching is always possible.
+As multiple different matchings can be possible, the aim of this step is to produce a minimum-weight matching
+with the least total cost of the edges.
+
+Since this is a very complex problem, we opted to use an existing and publicly available implementation
+of the Edmond's Blossom algorithm. This implementation, called \textit{Blossom V}, was described and developed 
+by Vladimir Kolmogorov and follows a $O(n^2m)$ time bound \cite{kolmogorov}. We incorporated it into our codebase
+in a trimmed and minimized form, adding a wrapper function to map between the input and output format of the
+implementation and the data structures used by us.
+
+Finally an Eulerian multigraph is constructed as a union $T \cup M$ of the perfect matching $M$ and the previously 
+obtained minimum spanning tree $T$. Given our choice of data structures, the union can easily be implemented
+as a concatenation of the two vectors representing the perfect matching and MST. 
+
 \subsubsection{Nearest Neighbor}
 
 An initial tour can also be found with the nearest neighbor approach.
@@ -183,7 +203,7 @@ edge an circle of length $(n-1)$.
 
 \subsection{Optimization}
 
-After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible from the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
+After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible to the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
 
 In practice, these algorithms must run until there is no new improvment. However, due to the Kattis time constraint, we have set a limit in the time execution in order to get the best possible path in the allowed time.
 
@@ -195,6 +215,17 @@ Our implementation of the algorithm is $O(n²)$ because it iterates through all 
 
 \subsubsection{2H-opt}
 
+Also called 2.5-opt, this algorithm looks for sets of three vertices $\{t,u,v\}$ in the path and tries relocating the 
+middle vertex $u$ between some other two vertices $\{x, z\}$, and evaluating whether the new triad $\{x, u, z\}$ and
+directly connected $\{t,v\}$ are resulting in a shorter total path.
+
+Our implementation iterates through all triads of the path, for each additionally iterating through the possible pairs
+for it to be compared against, resulting in $O(n^2)$ running time. As with 2-opt, the distance evaluation itself is quite fast,
+but modifying the tour if a movable vertex is found is considerably more expensive. As a vector is being used for representation
+of the path, vertex $u$ must be deleted from it, resulting in shifting of elements after its position. It is then
+reinserted between $x$ and $z$, again shifting elements $z$ and upwards.
+
+
 \subsubsection{3-opt}
 
 The 3-opt optimization consists in cutting 3 different edges of the path and concerving the shortest circuit over the 8 possibilities of reconnecting the three obtained part of the tour. The complete 3-opt algorithm iterates over all the possible set of 3 edge cutting in the tour. Thus, one execution of the algorithm is $O(n³)$. Once again, we only evaluate, the distances which could change when reconnecting the circuit.
@@ -205,6 +236,13 @@ The 3-opt optimization consists in cutting 3 different edges of the path and con
 
 The Travelling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited ressources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
 
-\section{References}
+\medskip
+
+\begin{thebibliography}{9}
+	\bibitem{kolmogorov}
+	Vladimir Kolmogorov. "Blossom V: A new implementation of a minimum cost perfect matching algorithm."
+	In Mathematical Programming Computation (MPC), July 2009, 1(1):43-67.
+\end{thebibliography}
+
 
 \end{document}

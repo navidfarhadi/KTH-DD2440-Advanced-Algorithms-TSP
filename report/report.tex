@@ -129,14 +129,14 @@ does not have to be a unique solution for the MST problem. There can be
 multiple sets of edges, which lead to equal total cost.
 There are several algorithms to
 solve that problem. The most common ones need $O(m \cdot log(n))$
-time. One example is the algorithm of Prim. I decided to implement
-this one because I had previous experience with that algorithm.
+time. One example is the algorithm of Prim. We decided to implement
+this one because one member of our group had previous experience with that algorithm.
 The algorithm of Prim has an initial node and creates the tree
 originating from that node. Once a vertex is processed the shortest
 path has been found and the incoming edge is added to the set of MST edges.
 Prim's algorithm is fairly simple to implement in C++ because
 the algorithm is based on a priority queue. The standard library
-for C++ offers various structs to use out of the box. I decided
+for C++ offers various structs to use out of the box. We decided
 to use the \texttt{std::make\_heap} function in combination
 with the basic data structure \texttt{std::vector<std::pair<int,double>>} and a comparator struct
 that puts the smallest reachable vertex on the top of the heap.
@@ -164,8 +164,8 @@ in the following way:
 \end{itemize}
 
 It can be shown that this approach leads to a tour with worst case length
-$ALG \le 2 \cdot OPT$. My implementation of the nearest neighbor algorithm
-has a runtime of $O(n^2)$ because there has is an iteration over all vertices
+$ALG \le 2 \cdot OPT$. Our implementation of the nearest neighbor algorithm
+has a runtime of $O(n^2)$ because there is an iteration over all vertices
 and another nested iteration over all vertices to find the one with
 the minimum distance to the current vertex.
 
@@ -177,7 +177,7 @@ is based on calculating all edges and sorting them from the lowest weight to
 the highest one. Starting with the edge that has the lowest weight edges are picked
 and put into the solution set of edges if they do not create circle in the solution
 domain. Moreover, each vertex is only allowed to have one incoming and one outgoing
-edge. In that way, my implementation of the MF approach has a runtime of $O(n^3)$
+edge. In that way, our implementation of the MF approach has a runtime of $O(n^3)$
 because it is possible to have to iterate through all edges and to check at the last
 edge an circle of length $(n-1)$.
 
@@ -197,8 +197,14 @@ Our implementation of the algorithm is $O(n²)$ because it iterates through all 
 
 \subsubsection{3-opt}
 
-The 3-opt optimization consists in cutting 3 different edges of the path and concerving the shortest circuit over the 8 possibilities of reconnecting the three obtained part of the tour. The complete 3-opt algorithm iterates over all the possible set of 3 of edge cutting in the tour. Thus, one execution of the algorithm is $O(n³)$.
+The 3-opt optimization consists in cutting 3 different edges of the path and concerving the shortest circuit over the 8 possibilities of reconnecting the three obtained part of the tour. The complete 3-opt algorithm iterates over all the possible set of 3 edge cutting in the tour. Thus, one execution of the algorithm is $O(n³)$. Once again, we only evaluate, the distances which could change when reconnecting the circuit.
 
 \section{Evaluation}
+
+\section{Conclusion}
+
+The Travelling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited ressources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
+
+\section{References}
 
 \end{document}

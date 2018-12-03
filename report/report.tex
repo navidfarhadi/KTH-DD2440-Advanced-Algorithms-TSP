@@ -19,6 +19,8 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 %\usepackage[ngerman]{datetime}
+\usepackage{minted}
+\usemintedstyle{vs}
 
 % Mark the meta information
 \title{Project TSP Report}
@@ -170,7 +172,15 @@ implementation and the data structures used by us.
 
 Finally an Eulerian multigraph is constructed as a union $T \cup M$ of the perfect matching $M$ and the previously 
 obtained minimum spanning tree $T$. Given our choice of data structures, the union can easily be implemented
-as a concatenation of the two vectors representing the perfect matching and MST. 
+as a concatenation of the two vectors representing the perfect matching and MST.
+
+\textbf{Eulerian Circuit \& Algorithm Output}
+
+The final two steps of Christofides algorithm required us to implement an algorithm to check whether or not the given multigraph $T \cup M$ contains an Eulerian circuit. Prior to doing this, the data structure containing the graph $T \cup M$ is modified from \mintinline{c++}{vector<array<int,2>>} to \mintinline{c++}{unordered_map<int,vector<int>>}. This is a basic implementation of a seperate chaining hash table. The reason that we made the decision to do this is because \mintinline{c++}{unordered_map} has $O(1)$ look-ups which is useful when checking to see whether or not the graph contains an Eulerian circuit and finding the Eulerian circuit.
+
+Next, we wrote a function to check whether or not the graph contains an Eulerian circuit. This was straightforward since we just needed to check whether or not each vertex has an even degree, since a graph contains an Eulerian circuit if and only if all vertices have an even degree. If the graph contains an Eulerian circuit, then we find the Eulerian circuit. This function was useful when testing our algorithm. In Christofides algorithm, $T \cup M$ is guaranteed to be given to you as an Eulerian multigraph so it isn't necessary to utilize this function in our final implementation, but we found that it did not effect the kattis score so we decided to keep it.
+
+To find the Eulerian circuit we used a simple algorithm that runs in $O(n+m)$ \cite{graphmagics}. Once we have an Eulerian circuit, we simply removed all repeated vertices which takes $O(n)$ time to give us the output of the algorithm as a hamiltonian circuit of the original input graph to TSP.
 
 \subsubsection{Nearest Neighbor}
 
@@ -242,6 +252,8 @@ The Travelling Salesman Problem is a really simple problem in its formulation bu
 	\bibitem{kolmogorov}
 	Vladimir Kolmogorov. "Blossom V: A new implementation of a minimum cost perfect matching algorithm."
 	In Mathematical Programming Computation (MPC), July 2009, 1(1):43-67.
+	\bibitem{graphmagics}
+	Dumitru Ciubatii. "Eulerian Path and Circuit." Retrieved November 15, 2018, from \url{http://www.graphmagics.com/articles/euler.php}.
 \end{thebibliography}
 
 

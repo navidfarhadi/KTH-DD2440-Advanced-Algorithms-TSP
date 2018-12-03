@@ -106,7 +106,7 @@
 
 \section{Introduction}
 
-Given a set of $n$ cities and the distances between them, the Traveling Salesman Problem (TSP) consists in finding the shortest circuit visiting all the cities only once. In this project, we study the Euclidean version of TSP in two dimensions. In this variant of the problem, all the cities are represented by their coordinates $x$ and $y$ and the distance between two cities is the Euclidean distance between them (rounded to the nearest integer in the case of the project). 
+Given a set of $n$ cities and the distances between them, the Travelling Salesman Problem (TSP) consists in finding the shortest circuit visiting all the cities only once. In this project, we study the Euclidian version of TSP in two dimensions. In this variant of the problem, all the cities are represented by their coordonnates $x$ and $y$ and the distance between two cities is the Euclidian distance between them (rounded to the nearest integer in the case of the project). 
 
 This report present the different algorithm we have implemented for obtaining the initial tour of this problem and for optimizing it.  It shows the results obtained and compare the performance of the different solutions. 
 
@@ -160,7 +160,7 @@ The next step of Christofides involves finding a minimum-weight perfect matching
 the odd-degree subgraph acquired in the previous step. A perfect matching for a graph
 is a set of edges so that no vertices are shared between the edges but all vertices are covered, i.e.,
 every vertex is covered by exactly one edge in the matching. By the Handshaking lemma, the odd-degree
-subgraph from the previous step must have an even number of vertices, therefore no vertices are left
+subgraph from the previous step must have an even number of vertices, therefore no verttices are left
 without a pairing and a perfect matching is always possible.
 As multiple different matchings can be possible, the aim of this step is to produce a minimum-weight matching
 with the least total cost of the edges.
@@ -216,11 +216,11 @@ edge an circle of length $(n-1)$ \cite{tum-chris-mf}.
 
 After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible to the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
 
-In practice, these algorithms must run until there is no new improvement. However, due to the Kattis time constraint, we have set a limit in the time execution in order to get the best possible path in the allowed time.
+In practice, these algorithms must run until there is no new improvment. However, due to the Kattis time constraint, we have set a limit in the time execution in order to get the best possible path in the allowed time.
 
 \subsubsection{2-opt}
 
-The concept of the 2-opt algorithm is really simple. It basically consists in breaking two different edges of the tour and reconnecting the two obtained part of the tour in a way that minimize the distances. In this case, there are only two way of reconnecting the tour. The complete 2-opt algorithm iterates over all the possible pair of edge cutting in the tour.
+The concept of the 2-opt algorithm is really simple. It basically consits in breaking two different edges of the tour and reconnecting the two obtained part of the tour in a way that minimize the distances. In this case, there are only two way of reconnecting the tour. The complete 2-opt algorithm iterates over all the possible pair of edge cutting in the tour.
 
 Our implementation of the algorithm is $O(n²)$ because it iterates through all pair of edge cutting. However, it is quite fast as it only evaluate the distances which could change by reversing the path between the two cuts and do the reverse only if it improves the tour's distance.
 
@@ -265,7 +265,7 @@ phase, but it was worth it measured by the increase of the kattis score it gave.
 
 \section{Conclusion}
 
-The Traveling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited resources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
+The Travelling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited ressources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
 
 \medskip
 
@@ -278,7 +278,7 @@ The Traveling Salesman Problem is a really simple problem in its formulation but
 	\bibitem{tum-chris-mf}
 	Sebastian Lotz. "Lösung and graphische Darstellung des Travelling Salesman Problems in einer Webapplikation.", Retrieved November 25, 2018, from \url{https://mediatum.ub.tum.de/doc/1225159/1225159.pdf}.
 	\bibitem{christofides}
-		Nicos Christofides. "Worst Case Analysis of a New Heuristic for the Traveling Salesman Problem.", Retrieved November 27, 2018, from \url{https://apps.dtic.mil/dtic/tr/fulltext/u2/a025602.pdf}.
+		Nicos Christofides. "Worst Case Analysis of a New Heuristic for the Travelling Salesman Problem.", Retrieved November 27, 2018, from \url{https://apps.dtic.mil/dtic/tr/fulltext/u2/a025602.pdf}.
 \end{thebibliography}
 
 

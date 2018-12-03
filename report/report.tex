@@ -19,8 +19,8 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 %\usepackage[ngerman]{datetime}
-\usepackage{minted}
-\usemintedstyle{vs}
+%\usepackage{minted}
+%\usemintedstyle{vs}
 
 % Mark the meta information
 \title{Project TSP Report}
@@ -116,15 +116,16 @@ This report present the different algorithm we have implemented for obtaining th
 
 \subsubsection{Christofides' Algorithm}
 
-The algorithm of Christofides is not a brandnew invention.
+In comparison to other many other useful algorithms in the field of TSP algorithms,
+the algorithm of Christofides \cite{christofides} was invented over 40 years ago.
 It is an approximation algorithm that achieves to find a tour
 with worst case length $ALG \leq 1.5 \cdot OPT$. The Christofides
-algorithm consists of major parts that are explained in the following
+algorithm consists of four major parts that are explained in the following
 text.
 
 \textbf{Construction of a Minimum Spanning Tree}
 
-A Minimum Spanning Tree (MST) is subset of edges in a graph that produces
+A Minimum Spanning Tree (MST) is a subset of edges in a graph that produces
 a fully connected graph with minimum weight. It is important to note that there
 does not have to be a unique solution for the MST problem. There can be
 multiple sets of edges, which lead to equal total cost.
@@ -146,11 +147,11 @@ that puts the smallest reachable vertex on the top of the heap.
 
 After finding one solution for the MST problem, the algorithm of Christofides
 says to sort out all the vertices that do not have an odd degree in the MST
-edges set. This check can be done in $O(m + n)$. First we iterate over all
+edges set. This check can be done in $O(m + n)$. First, we iterate over all
 MST edges and increase for the two vertices the degree. After that, we sort
 out all vertices with an even degree. Since the amount of MST edges is always
 less equal than the amount vertices, we can simplify the runtime of finding
-all odd vertices to $O(n)$. The formula $E_{MST} \le n$ holds because
+all odd vertices to $O(n)$. The formula $|E_{MST}| \le n$ holds because
 of the construction criterion of MST.
 
 \textbf{Minimum-weight Perfect Matching}
@@ -176,7 +177,7 @@ as a concatenation of the two vectors representing the perfect matching and MST.
 
 \textbf{Eulerian Circuit \& Algorithm Output}
 
-The final two steps of Christofides algorithm required us to implement an algorithm to check whether or not the given multigraph $T \cup M$ contains an Eulerian circuit. Prior to doing this, the data structure containing the graph $T \cup M$ is modified from \mintinline{c++}{vector<array<int,2>>} to \mintinline{c++}{unordered_map<int,vector<int>>}. This is a basic implementation of a seperate chaining hash table. The reason that we made the decision to do this is because \mintinline{c++}{unordered_map} has $O(1)$ look-ups which is useful when checking to see whether or not the graph contains an Eulerian circuit and finding the Eulerian circuit.
+The final two steps of Christofides algorithm required us to implement an algorithm to check whether or not the given multigraph $T \cup M$ contains an Eulerian circuit. Prior to doing this, the data structure containing the graph $T \cup M$ is modified from \texttt{vector<array<int,2>>} to \texttt{unordered\_map<int,vector<int>>}. This is a basic implementation of a seperate chaining hash table. The reason that we made the decision to do this is because \texttt{unordered\_map} has $O(1)$ look-ups which is useful when checking to see whether or not the graph contains an Eulerian circuit and finding the Eulerian circuit.
 
 Next, we wrote a function to check whether or not the graph contains an Eulerian circuit. This was straightforward since we just needed to check whether or not each vertex has an even degree, since a graph contains an Eulerian circuit if and only if all vertices have an even degree. If the graph contains an Eulerian circuit, then we find the Eulerian circuit. This function was useful when testing our algorithm. In Christofides algorithm, $T \cup M$ is guaranteed to be given to you as an Eulerian multigraph so it isn't necessary to utilize this function in our final implementation, but we found that it did not effect the kattis score so we decided to keep it.
 
@@ -209,7 +210,7 @@ and put into the solution set of edges if they do not create circle in the solut
 domain. Moreover, each vertex is only allowed to have one incoming and one outgoing
 edge. In that way, our implementation of the MF approach has a runtime of $O(n^3)$
 because it is possible to have to iterate through all edges and to check at the last
-edge an circle of length $(n-1)$.
+edge an circle of length $(n-1)$ \cite{tum-chris-mf}.
 
 \subsection{Optimization}
 
@@ -242,6 +243,26 @@ The 3-opt optimization consists in cutting 3 different edges of the path and con
 
 \section{Evaluation}
 
+In the following part, we will evaluate how successful the different parts of the implementation
+have been and where we had major problems.
+
+\subsection{Initial Tour}
+
+Computing the initial tour has a major impact on how good our results on kattis are.
+This means that we optimally should not use a lot of time but still
+get a good approximation. The actual score is determined by the optimization, which
+are conducted afterwards. We
+implemented all the approaches described above to get an initial tour and
+compared them by their kattis score.
+It is important to note that we have always applied the same optimization strategy so that the results
+are comparable. The algorithm of Chrisofides performed best among all algorithms. This is mainly
+determined by the fact that Christofides' algorithm is bound to a factor of $1.5$ of the optimal
+solution. In this way, the kattis score is remarkably higher than for the other two approaches.
+The algorithm of Christofides has one major drawback. Its implementation is not simple because of the
+difficulty of implementing the computation of a MST and of the perfect matching.
+This has cost us a lot of time during the implementation
+phase, but it was worth it measured by the increase of the kattis score it gave.
+
 \section{Conclusion}
 
 The Travelling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited ressources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
@@ -254,6 +275,10 @@ The Travelling Salesman Problem is a really simple problem in its formulation bu
 	In Mathematical Programming Computation (MPC), July 2009, 1(1):43-67.
 	\bibitem{graphmagics}
 	Dumitru Ciubatii. "Eulerian Path and Circuit." Retrieved November 15, 2018, from \url{http://www.graphmagics.com/articles/euler.php}.
+	\bibitem{tum-chris-mf}
+	Sebastian Lotz. "Lösung and graphische Darstellung des Travelling Salesman Problems in einer Webapplikation.", Retrieved November 25, 2018, from \url{https://mediatum.ub.tum.de/doc/1225159/1225159.pdf}.
+	\bibitem{christofides}
+		Nicos Christofides. "Worst Case Analysis of a New Heuristic for the Travelling Salesman Problem.", Retrieved November 27, 2018, from \url{https://apps.dtic.mil/dtic/tr/fulltext/u2/a025602.pdf}.
 \end{thebibliography}
 
 

@@ -30,19 +30,22 @@ int main()
 
     init_dist_array(vertices);
 
-    std::vector<int> init_tour;
+    //std::vector<int> init_tour;
 
-    create_inital_tour(numVertices, init_tour);
+    //create_inital_tour(numVertices, init_tour);
 
-    /*std::vector<std::array<int,2>> mst_edges;
+    //Maximum spanning tree
+    std::vector<std::array<int,2>> mst_edges;
     MST *m = new MST(vertices);
     m->getMST(mst_edges);
 
+    //Vertices with odd degree
     std::vector<int> oddVertexIndices;
     std::vector<std::array<int,2>> sub_edges;
     find_odd_v(mst_edges,oddVertexIndices,numVertices);
     create_subgraph(oddVertexIndices, sub_edges);
 
+    //Perfect matching
     std::vector<std::array<int,2>> matching_edges;
     find_perfect_matching(sub_edges, vertices, oddVertexIndices, matching_edges);
 
@@ -55,11 +58,12 @@ int main()
     changeToMap(multigraph, new_graph);
 
     if(hasEulerianCircuit(new_graph))
-    {*/
+    {
+	//Eulerian and hamiltonian circuit
         std::vector<int> path;
-        /*findEulerianCircuit(new_graph,path, 0);
-        findHamiltonianCircuit(path,numVertices);*/
-        path = init_tour;
+        findEulerianCircuit(new_graph,path, 0);
+        findHamiltonianCircuit(path,numVertices);
+        //path = init_tour;
 
 	
         //double cost;
@@ -68,7 +72,8 @@ int main()
 
         int count = 0;
 	*/
-
+	
+	//Optimization
         while(double(clock() - init_clock) / CLOCKS_PER_SEC < 1.05)
         {
 	    twoOpt(path, vertices, init_clock);
@@ -137,7 +142,7 @@ int main()
         {
             std::cout << path[i] << std::endl;
         }
-    //}
+    }
 
     return 0;
 }

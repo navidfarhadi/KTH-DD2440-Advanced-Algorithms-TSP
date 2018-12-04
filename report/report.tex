@@ -106,7 +106,7 @@
 
 \section{Introduction}
 
-Given a set of $n$ cities and the distances between them, the Traveling Salesman Problem (TSP) consists in finding the shortest circuit visiting all the cities only once. In this project, we study the Euclidean version of TSP in two dimensions. In this variant of the problem, all the cities are represented by their coordinates $x$ and $y$ and the distance between two cities is the Euclidean distance between them (rounded to the nearest integer in the case of the project). 
+Given a set of $n$ cities and the distances between them, the Traveling Salesman Problem (TSP) consists in finding the shortest circuit visiting all the cities only once. In this project, we study the Euclidean version of TSP in two dimensions \cite{course}. In this variant of the problem, all the cities are represented by their coordinates $x$ and $y$ and the distance between two cities is the Euclidean distance between them (rounded to the nearest integer in the case of the project). 
 
 This report present the different algorithm we have implemented for obtaining the initial tour of this problem and for optimizing it.  It shows the results obtained and compare the performance of the different solutions. 
 
@@ -165,9 +165,9 @@ without a pairing and a perfect matching is always possible.
 As multiple different matchings can be possible, the aim of this step is to produce a minimum-weight matching
 with the least total cost of the edges.
 
-Since this is a very complex problem, we opted to use an existing and publicly available implementation
+Since this is a very complex problem, we opted to use an existing and publicly available implementation\footnote{as autorized in the hints of the TSP project}
 of the Edmond's Blossom algorithm. This implementation, called \textit{Blossom V}, was described and developed 
-by Vladimir Kolmogorov and follows a $O(n^2m)$ time bound \cite{kolmogorov}. We incorporated it into our codebase
+by Vladimir Kolmogorov and follows a $O(n^2m)$ time bound \cite{kolmogorov}\cite{kolmogorovcode}. We incorporated it into our codebase
 in a trimmed and minimized form, adding a wrapper function to map between the input and output format of the
 implementation and the data structures used by us.
 
@@ -214,7 +214,7 @@ edge an circle of length $(n-1)$ \cite{tum-chris-mf}.
 
 \subsection{Optimization}
 
-After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible to the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
+After the obtention of the initial tour, we need to run some optimization algorithm to get as close as possible to the optimal solution. In our project, we have focus our work on three special cases of k-opt: 2-opt, 2H-opt and 3-opt. All of these algorithms belong to the class of local search algorithms \cite[p.~133]{course}. The main issue with these algorithms is that they can easily fall in some local minimum and then never obtain the optimal path. 
 
 In practice, these algorithms must run until there is no new improvement. However, due to the Kattis time constraint, we have set a limit in the time execution in order to get the best possible path in the allowed time.
 
@@ -244,7 +244,7 @@ The 3-opt optimization consists in cutting 3 different edges of the path and con
 \section{Evaluation}
 
 In the following part, we will evaluate how successful the different parts of the implementation
-have been and where we had major problems.
+have been and where we had major problems. Concerning the test cases, we use locally some small basic test cases for debugging and we evaluate the performances based on kattis score.
 
 \subsection{Initial Tour}
 
@@ -263,22 +263,31 @@ difficulty of implementing the computation of a MST and of the perfect matching.
 This has cost us a lot of time during the implementation
 phase, but it was worth it measured by the increase of the kattis score it gave.
 
+\subsection{Optimization}
+
+After obtaining a good initial tour, it is important to optimize it in order to get the best possible kattis score. The following comparison of results is obtained with an initial tour from Christofides' algorithm which gives us the best results.
+First, we have implemented 2-opt and try to optimize our path by running 2-opt until the end of the allowaded time (2s). We obtained at most 25 points on kattis by making the algorithm as fast as possible. Then, to improve our score, we implemented 3-opt and get around 28-29 points by running only 3opt. As the cost of 3-opt is quite expensive, we have implemented 2H-opt and tried to find a compromise between running 2-opt, 2H-opt and 3-opt. We obtained our best score of 35 by running a combination of the three algorithms. In fact, we run a loop of 2-opt and 2H-opt until 1.05 seconds of the total running time in order to do a first fast optimization, and then, we run a loop of 2H-opt and 3-opt until the end of the allowed time in order to obtain a more precise optimization. 
+
 \section{Conclusion}
 
 The Traveling Salesman Problem is a really simple problem in its formulation but it can be very difficult to find an optimal tour by using limited resources (time, memory). That is why it is important to compute quickly an initial tour that is quite close to the optimal solution and choose well the optimization algorithms to use to go efficiently to the optimal tour.
 
 \medskip
-
+\newpage
 \begin{thebibliography}{9}
 	\bibitem{kolmogorov}
 	Vladimir Kolmogorov. "Blossom V: A new implementation of a minimum cost perfect matching algorithm."
 	In Mathematical Programming Computation (MPC), July 2009, 1(1):43-67.
+	\bibitem{kolmogorovcode}
+	Vladimir Kolgomorov. Blossom V source code (licensed for research purposes only), Retrieved December 4, 2018, from \url{http://pub.ist.ac.at/~vnk/software/blossom5-v2.05.src.tar.gz}
 	\bibitem{graphmagics}
 	Dumitru Ciubatii. "Eulerian Path and Circuit." Retrieved November 15, 2018, from \url{http://www.graphmagics.com/articles/euler.php}.
 	\bibitem{tum-chris-mf}
 	Sebastian Lotz. "Lösung and graphische Darstellung des Travelling Salesman Problems in einer Webapplikation.", Retrieved November 25, 2018, from \url{https://mediatum.ub.tum.de/doc/1225159/1225159.pdf}.
 	\bibitem{christofides}
 		Nicos Christofides. "Worst Case Analysis of a New Heuristic for the Traveling Salesman Problem.", Retrieved November 27, 2018, from \url{https://apps.dtic.mil/dtic/tr/fulltext/u2/a025602.pdf}.
+	\bibitem{course}
+		Johan Hastad. "Notes for the course advanced algorithms", January 2000, 16:129-141
 \end{thebibliography}
 
 
